@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sports.sports.mapper.ScheduleMapper">
+
+    <select id="selectSchedulePage" resultType="com.sports.sports.entity.Schedule">
+        SELECT s.*,
+               e.name AS event_name,
+               e.category AS category,
+               m.name AS meeting_name,
+               u.real_name AS referee_name,
+               (SELECT COUNT(*) FROM t_schedule_athlete sa WHERE sa.schedule_id = s.id) AS athlete_count
+        FROM t_schedule s
+        LEFT JOIN t_event e ON s.event_id = e.id
+        LEFT JOIN t_meeting m ON s.meeting_id = m.id
+        LEFT JOIN ssms_auth.t_user u ON s.referee_id = u.id
+        WHERE s.deleted = 0
+        <if test="meetingId != null">
+            AND s.meeting_id = #{meetingId}
+        </if>
+        <if test="eventId != null">
+            AND s.event_id = #{eventId}
+        </if>
+        <if test="eventDate != null">
+            AND s.event_date = #{eventDate}
+        </if>
+        <if test="status != null">
+            AND s.status = #{status}
+        </if>
+        <if test="refereeId != null">
+            AND s.referee_id = #{refereeId}
+        </if>
+        ORDER BY s.event_date ASC, s.start_time ASC
+    </select>
+
+    <select id="selectScheduleDetail" resultType="com.sports.sports.entity.Schedule">
+        SELECT s.*,
+               e.name AS event_name,
+               e.category AS category,
+               m.name AS meeting_name,
+               u.real_name AS referee_name,
+               (SELECT COUNT(*) FROM t_schedule_athlete sa WHERE sa.schedule_id = s.id) AS athlete_count
+        FROM t_schedule s
+        LEFT JOIN t_event e ON s.event_id = e.id
+        LEFT JOIN t_meeting m ON s.meeting_id = m.id
+        LEFT JOIN ssms_auth.t_user u ON s.referee_id = u.id
+        WHERE s.id = #{id} AND s.deleted = 0
+    </select>
+
+</mapper>

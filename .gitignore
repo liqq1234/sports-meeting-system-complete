@@ -1,0 +1,41 @@
+# ### IDE ###
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# ### Build ###
+target/
+dist/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ### Logs ###
+*.log
+backend/auth_diag.log
+backend/auth_start.log
+
+# ### OS ###
+.DS_Store
+Thumbs.db
+
+# ### Project Specific ###
+populate_data.sql
+reset_admin.sql
+reset_admin2.sql
+db_schema.txt
+# 下面是如果你使用 Docker 挂载数据卷时的路径，建议忽略
+docker/mysql/data/
+docker/nacos/data/
+docker/nacos/logs/
+
+# ### Environment ###
+.env
+.env.local
+.env.*.local

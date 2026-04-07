@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  ssms-nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: ssms-nacos
+    environment:
+      - MODE=standalone
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    networks:
+      - ssms-network
+    restart: always
+
+  ssms-redis:
+    image: redis:7.0
+    container_name: ssms-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ssms-network
+    restart: always
+
+  ssms-gateway:
+    build: ./backend/ssms-gateway
+    container_name: ssms-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=ssms-nacos:8848
+    depends_on:
+      - ssms-nacos
+    networks:
+      - ssms-network
+
+  ssms-auth:
+    build: ./backend/ssms-auth
+    container_name: ssms-auth
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=ssms-nacos:8848
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/ssms_auth?useUnicode=true&characterEncoding=UTF-8&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_PASSWORD=4693090li
+      - SPRING_REDIS_HOST=ssms-redis
+    depends_on:
+      - ssms-nacos
+      - ssms-redis
+    networks:
+      - ssms-network
+
+  ssms-sports-service:
+    build: ./backend/ssms-sports-service
+    container_name: ssms-sports-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=ssms-nacos:8848
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/ssms_sports?useUnicode=true&characterEncoding=UTF-8&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_PASSWORD=4693090li
+      - SPRING_REDIS_HOST=ssms-redis
+    depends_on:
+      - ssms-nacos
+      - ssms-redis
+    networks:
+      - ssms-network
+
+  ssms-logistics-service:
+    build: ./backend/ssms-logistics-service
+    container_name: ssms-logistics-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=ssms-nacos:8848
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/ssms_logistics?useUnicode=true&characterEncoding=UTF-8&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_PASSWORD=4693090li
+      - SPRING_REDIS_HOST=ssms-redis
+    depends_on:
+      - ssms-nacos
+      - ssms-redis
+    networks:
+      - ssms-network
+
+  ssms-medical-service:
+    build: ./backend/ssms-medical-service
+    container_name: ssms-medical-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=ssms-nacos:8848
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/ssms_medical?useUnicode=true&characterEncoding=UTF-8&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_PASSWORD=4693090li
+      - SPRING_REDIS_HOST=ssms-redis
+    depends_on:
+      - ssms-nacos
+      - ssms-redis
+    networks:
+      - ssms-network
+
+networks:
+  ssms-network:
+    driver: bridge

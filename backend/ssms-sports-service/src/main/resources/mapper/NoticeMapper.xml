@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sports.sports.mapper.NoticeMapper">
+
+    <select id="selectNoticePage" resultType="com.sports.sports.entity.Notice">
+        SELECT n.*,
+               u.real_name AS publisher_name,
+               m.name AS meeting_name
+        FROM t_notice n
+        LEFT JOIN ssms_auth.t_user u ON n.published_by = u.id
+        LEFT JOIN t_meeting m ON n.meeting_id = m.id
+        WHERE n.deleted = 0
+        <if test="meetingId != null">
+            AND n.meeting_id = #{meetingId}
+        </if>
+        <if test="type != null">
+            AND n.type = #{type}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (n.title LIKE CONCAT('%', #{keyword}, '%') OR n.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="targetRole != null">
+            AND (n.target_role IS NULL OR n.target_role = #{targetRole})
+        </if>
+        ORDER BY n.is_top DESC, n.create_time DESC
+    </select>
+
+</mapper>

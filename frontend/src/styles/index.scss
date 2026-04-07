@@ -1,0 +1,59 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #333;
+  background-color: #f0f2f5;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.page-container {
+  padding: 20px;
+}
+
+.filter-container {
+  padding: 20px;
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.table-container {
+  padding: 20px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-container {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog-footer {
+  text-align: right;
+}
+
+// 状态标签颜色
+.el-tag--success { background-color: #f0f9eb; border-color: #e1f3d8; color: #67c23a; }
+.el-tag--warning { background-color: #fdf6ec; border-color: #faecd8; color: #e6a23c; }
+.el-tag--danger { background-color: #fef0f0; border-color: #fde2e2; color: #f56c6c; }
+.el-tag--info { background-color: #f4f4f5; border-color: #e9e9eb; color: #909399; }
+
+// NProgress 自定义
+#nprogress .bar {
+  background: #409EFF !important;
+}

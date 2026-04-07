@@ -1,0 +1,53 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ssms-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        ip: 127.0.0.1
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 开启从注册中心动态创建路由的功能
+          lower-case-service-id: true # 使用小写服务名
+      routes:
+        - id: auth-service
+          uri: lb://ssms-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+        - id: sports-service
+          uri: lb://ssms-sports-service
+          predicates:
+            - Path=/api/sports/**
+          filters:
+            - StripPrefix=2
+        - id: logistics-service
+          uri: lb://ssms-logistics-service
+          predicates:
+            - Path=/api/logistics/**
+          filters:
+            - StripPrefix=2
+        - id: medical-service
+          uri: lb://ssms-medical-service
+          predicates:
+            - Path=/api/medical/**
+          filters:
+            - StripPrefix=2
+
+jwt:
+  secret: sports-meeting-system-secret-key-2026-03-19
+  # 白名单路径
+  white-list:
+    - /api/auth/login
+    - /api/auth/register
+    - /api/sports/public/**
+    - /doc.html
+    - /webjars/**
+    - /swagger-resources/**
+    - /v2/api-docs

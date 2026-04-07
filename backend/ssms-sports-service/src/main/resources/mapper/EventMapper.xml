@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sports.sports.mapper.EventMapper">
+
+    <select id="selectEventPage" resultType="com.sports.sports.entity.Event">
+        SELECT e.*,
+               m.name AS meeting_name,
+               u.real_name AS referee_name,
+               (SELECT COUNT(*) FROM t_registration r WHERE r.event_id = e.id AND r.status = 1 AND r.deleted = 0) AS current_participants
+        FROM t_event e
+        LEFT JOIN t_meeting m ON e.meeting_id = m.id
+        LEFT JOIN ssms_auth.t_user u ON e.referee_id = u.id
+        WHERE e.deleted = 0
+        <if test="meetingId != null">
+            AND e.meeting_id = #{meetingId}
+        </if>
+        <if test="name != null and name != ''">
+            AND e.name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="category != null and category != ''">
+            AND e.category = #{category}
+        </if>
+        <if test="genderLimit != null">
+            AND e.gender_limit = #{genderLimit}
+        </if>
+        <if test="status != null">
+            AND e.status = #{status}
+        </if>
+        ORDER BY e.event_date ASC, e.start_time ASC
+    </select>
+
+    <select id="selectEventDetail" resultType="com.sports.sports.entity.Event">
+        SELECT e.*,
+               m.name AS meeting_name,
+               u.real_name AS referee_name,
+               (SELECT COUNT(*) FROM t_registration r WHERE r.event_id = e.id AND r.status = 1 AND r.deleted = 0) AS current_participants
+        FROM t_event e
+        LEFT JOIN t_meeting m ON e.meeting_id = m.id
+        LEFT JOIN ssms_auth.t_user u ON e.referee_id = u.id
+        WHERE e.id = #{id} AND e.deleted = 0
+    </select>
+
+    <select id="selectEventStats" resultType="java.util.Map">
+        SELECT e.category,
+               COUNT(*) AS event_count,
+               SUM(CASE WHEN e.status = 0 THEN 1 ELSE 0 END) AS not_started,
+               SUM(CASE WHEN e.status = 1 THEN 1 ELSE 0 END) AS in_progress,
+               SUM(CASE WHEN e.status = 2 THEN 1 ELSE 0 END) AS completed
+        FROM t_event e
+        WHERE e.deleted = 0
+        <if test="meetingId != null">
+            AND e.meeting_id = #{meetingId}
+        </if>
+        GROUP BY e.category
+    </select>
+
+</mapper>
