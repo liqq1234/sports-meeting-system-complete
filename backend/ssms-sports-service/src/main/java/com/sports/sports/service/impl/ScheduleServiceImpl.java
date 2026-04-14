@@ -76,6 +76,36 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     @CacheEvict(value = {"schedules", "schedule:detail"}, allEntries = true)
+    public void deleteByEventId(Long eventId) {
+        // 先获取该项目的所有赛程ID
+        List<Schedule> schedules = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>().eq(Schedule::getEventId, eventId));
+        for (Schedule schedule : schedules) {
+            // 删除赛程运动员关联
+            scheduleAthleteMapper.delete(
+                    new LambdaQueryWrapper<ScheduleAthlete>().eq(ScheduleAthlete::getScheduleId, schedule.getId()));
+        }
+        // 删除赛程
+        scheduleMapper.delete(new LambdaQueryWrapper<Schedule>().eq(Schedule::getEventId, eventId));
+    }
+
+    @Override
+    @CacheEvict(value = {"schedules", "schedule:detail"}, allEntries = true)
+    public void deleteByMeetingId(Long meetingId) {
+        // 先获取该运动会的所有赛程ID
+        List<Schedule> schedules = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>().eq(Schedule::getMeetingId, meetingId));
+        for (Schedule schedule : schedules) {
+            // 删除赛程运动员关联
+            scheduleAthleteMapper.delete(
+                    new LambdaQueryWrapper<ScheduleAthlete>().eq(ScheduleAthlete::getScheduleId, schedule.getId()));
+        }
+        // 删除赛程
+        scheduleMapper.delete(new LambdaQueryWrapper<Schedule>().eq(Schedule::getMeetingId, meetingId));
+    }
+
+    @Override
+    @CacheEvict(value = {"schedules", "schedule:detail"}, allEntries = true)
     public void updateStatus(Long id, Integer status) {
         Schedule schedule = new Schedule();
         schedule.setId(id);

@@ -7,9 +7,13 @@ import com.sports.sports.common.PageResult;
 import com.sports.sports.entity.Event;
 import com.sports.sports.mapper.EventMapper;
 import com.sports.sports.service.EventService;
+import com.sports.sports.service.RegistrationService;
+import com.sports.sports.service.ScheduleService;
+import com.sports.sports.service.ScoreService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +24,15 @@ public class EventServiceImpl implements EventService {
 
     @Autowired
     private EventMapper eventMapper;
+
+    @Autowired
+    private RegistrationService registrationService;
+
+    @Autowired
+    private ScheduleService scheduleService;
+
+    @Autowired
+    private ScoreService scoreService;
 
     @Override
     public PageResult<Event> getPage(Integer pageNum, Integer pageSize, Long meetingId, String name, String category, Integer genderLimit, Integer status) {
@@ -57,8 +70,29 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        // 先删除相关的成绩记录
+        scoreService.deleteByEventId(id);
+        // 删除相关的赛程安排
+        scheduleService.deleteByEventId(id);
+        // 删除相关的报名记录
+        registrationService.deleteByEventId(id);
+        // 最后删除比赛项目
         eventMapper.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public void deleteByMeetingId(Long meetingId) {
+        // 先删除相关的成绩记录
+        scoreService.deleteByMeetingId(meetingId);
+        // 删除相关的赛程安排
+        scheduleService.deleteByMeetingId(meetingId);
+        // 删除相关的报名记录
+        registrationService.deleteByMeetingId(meetingId);
+        // 最后删除比赛项目
+        eventMapper.delete(new LambdaQueryWrapper<Event>().eq(Event::getMeetingId, meetingId));
     }
 
     @Override

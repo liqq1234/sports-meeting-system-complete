@@ -227,8 +227,13 @@ router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${to.meta.title} - 高校体育运动会管理系统` : '高校体育运动会管理系统'
   const token = store.getters.token
   if (token) {
-    if (to.path === '/login') {
-      next({ path: '/' })
+    if (to.path === '/login' || to.path === '/register') {
+      // 已登录用户访问登录/注册页时，如果来自系统内部页面则阻止跳转
+      if (from.path && from.path !== '/' && !whiteList.includes(from.path)) {
+        next(false)
+      } else {
+        next({ path: '/' })
+      }
     } else {
       next()
     }

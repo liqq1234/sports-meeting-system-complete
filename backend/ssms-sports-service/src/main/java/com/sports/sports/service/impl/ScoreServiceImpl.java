@@ -173,6 +173,26 @@ public class ScoreServiceImpl implements ScoreService {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "score:distribution", allEntries = true),
+        @CacheEvict(value = "score:collegeRanking", allEntries = true),
+        @CacheEvict(value = "score:topAthletes", allEntries = true)
+    })
+    public void deleteByEventId(Long eventId) {
+        scoreMapper.delete(new LambdaQueryWrapper<Score>().eq(Score::getEventId, eventId));
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "score:distribution", allEntries = true),
+        @CacheEvict(value = "score:collegeRanking", allEntries = true),
+        @CacheEvict(value = "score:topAthletes", allEntries = true)
+    })
+    public void deleteByMeetingId(Long meetingId) {
+        scoreMapper.delete(new LambdaQueryWrapper<Score>().eq(Score::getMeetingId, meetingId));
+    }
+
+    @Override
     @Cacheable(value = "score:distribution", key = "#meetingId")
     public List<Map<String, Object>> getScoreDistribution(Long meetingId) {
         return scoreMapper.selectScoreDistribution(meetingId);

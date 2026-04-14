@@ -6,11 +6,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.PageResult;
 import com.sports.sports.entity.Meeting;
 import com.sports.sports.mapper.MeetingMapper;
+import com.sports.sports.service.EventService;
 import com.sports.sports.service.MeetingService;
 import com.sports.sports.util.UserContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,6 +22,9 @@ public class MeetingServiceImpl implements MeetingService {
 
     @Autowired
     private MeetingMapper meetingMapper;
+
+    @Autowired
+    private EventService eventService;
 
     @Override
     public PageResult<Meeting> getPage(Integer pageNum, Integer pageSize, String name, Integer status) {
@@ -55,7 +60,11 @@ public class MeetingServiceImpl implements MeetingService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
+        // 先删除该运动会下的所有比赛项目
+        eventService.deleteByMeetingId(id);
+        // 再删除运动会
         meetingMapper.deleteById(id);
     }
 

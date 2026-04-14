@@ -13,6 +13,8 @@ public interface ScoreService {
     void publish(Long eventId);
     List<Score> getEventScores(Long eventId);
     void calculateRanking(Long eventId);
+    void deleteByEventId(Long eventId);
+    void deleteByMeetingId(Long meetingId);
     List<Map<String, Object>> getScoreDistribution(Long meetingId);
     List<Map<String, Object>> getCollegeRanking(Long meetingId);
     List<Map<String, Object>> getTopAthletes(Long meetingId, Integer limit);

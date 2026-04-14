@@ -177,6 +177,16 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
+    public void deleteByEventId(Long eventId) {
+        registrationMapper.delete(new LambdaQueryWrapper<Registration>().eq(Registration::getEventId, eventId));
+    }
+
+    @Override
+    public void deleteByMeetingId(Long meetingId) {
+        registrationMapper.delete(new LambdaQueryWrapper<Registration>().eq(Registration::getMeetingId, meetingId));
+    }
+
+    @Override
     public List<Map<String, Object>> getRegistrationStats(Long meetingId) {
         return registrationMapper.selectRegistrationStats(meetingId);
     }

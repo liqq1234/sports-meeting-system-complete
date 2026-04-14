@@ -12,6 +12,7 @@ public interface EventService {
     void add(Event event);
     void update(Event event);
     void delete(Long id);
+    void deleteByMeetingId(Long meetingId);
     void updateStatus(Long id, Integer status);
     List<Map<String, Object>> getEventStats(Long meetingId);
 }

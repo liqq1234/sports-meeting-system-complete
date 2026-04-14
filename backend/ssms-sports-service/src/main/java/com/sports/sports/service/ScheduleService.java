@@ -12,6 +12,8 @@ public interface ScheduleService {
     void add(Schedule schedule);
     void update(Schedule schedule);
     void delete(Long id);
+    void deleteByEventId(Long eventId);
+    void deleteByMeetingId(Long meetingId);
     void updateStatus(Long id, Integer status);
     void autoGenerate(Long meetingId);
     List<ScheduleAthlete> getAthletes(Long scheduleId);

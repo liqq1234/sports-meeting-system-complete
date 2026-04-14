@@ -11,6 +11,8 @@ public interface RegistrationService {
     void cancel(Long id);
     void review(Long id, Integer status, String rejectReason);
     void batchReview(List<Long> ids, Integer status, String rejectReason);
+    void deleteByEventId(Long eventId);
+    void deleteByMeetingId(Long meetingId);
     List<Map<String, Object>> getRegistrationStats(Long meetingId);
     List<Map<String, Object>> getCollegeRegistrationStats(Long meetingId);
 }
