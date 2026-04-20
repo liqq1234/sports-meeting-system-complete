@@ -5,11 +5,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.Constants;
 import com.sports.sports.common.PageResult;
+import com.sports.sports.common.exception.BusinessException;
 import com.sports.sports.entity.*;
 import com.sports.sports.mapper.*;
 import com.sports.sports.service.ScheduleService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -21,19 +22,18 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ScheduleServiceImpl implements ScheduleService {
 
-    @Autowired
-    private ScheduleMapper scheduleMapper;
+    private final ScheduleMapper scheduleMapper;
 
-    @Autowired
-    private ScheduleAthleteMapper scheduleAthleteMapper;
+    private final ScheduleAthleteMapper scheduleAthleteMapper;
 
-    @Autowired
-    private EventMapper eventMapper;
+    private final EventMapper eventMapper;
 
-    @Autowired
-    private RegistrationMapper registrationMapper;
+    private final RegistrationMapper registrationMapper;
+
+    private final com.sports.sports.client.UserClient userClient;
 
     @Override
     @Cacheable(value = "schedules", key = "#meetingId + '_' + #eventId + '_' + #pageNum + '_' + #pageSize + '_' + #status")
@@ -48,7 +48,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     public Schedule getById(Long id) {
         Schedule schedule = scheduleMapper.selectScheduleDetail(id);
         if (schedule == null) {
-            throw new RuntimeException("赛程不存在");
+            throw new BusinessException("赛程不存在");
         }
         return schedule;
     }
@@ -172,7 +172,27 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public List<ScheduleAthlete> getAthletes(Long scheduleId) {
-        return scheduleAthleteMapper.selectByScheduleId(scheduleId);
+        List<ScheduleAthlete> athletes = scheduleAthleteMapper.selectByScheduleId(scheduleId);
+        if (athletes != null && !athletes.isEmpty()) {
+            java.util.List<Long> userIds = athletes.stream()
+                .map(ScheduleAthlete::getUserId)
+                .collect(java.util.stream.Collectors.toList());
+            
+            com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
+            if (userResult.getCode() == 200 && userResult.getData() != null) {
+                java.util.Map<Long, com.sports.sports.client.vo.UserVO> userMap = userResult.getData().stream()
+                    .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u));
+                
+                for (ScheduleAthlete sa : athletes) {
+                    com.sports.sports.client.vo.UserVO vo = userMap.get(sa.getUserId());
+                    if (vo != null) {
+                        sa.setUserRealName(vo.getRealName());
+                        sa.setUserCollege(vo.getCollege());
+                    }
+                }
+            }
+        }
+        return athletes;
     }
 
     @Override

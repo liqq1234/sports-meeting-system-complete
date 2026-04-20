@@ -129,7 +129,11 @@
       </el-header>
 
       <el-main class="layout-main">
-        <router-view />
+        <transition name="fade-transform" mode="out-in">
+          <keep-alive>
+            <router-view :key="$route.path" />
+          </keep-alive>
+        </transition>
       </el-main>
     </el-container>
   </el-container>

@@ -27,40 +27,38 @@ public class AuthController {
 
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@RequestBody LoginRequest request) {
-        log.info("用户尝试登录: username='{}', password(length={})='{}'", request.getUsername(), request.getPassword().length(), request.getPassword());
-        User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername()));
-        
-        if (user != null) {
-            log.info("数据库查询到的Hash: length={}, value='{}'", user.getPassword().length(), user.getPassword());
-        }
+        try {
+            log.info("用户尝试登录: username='{}'", request.getUsername());
+            User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername()));
+            
+            if (user != null && cn.hutool.crypto.digest.BCrypt.checkpw(request.getPassword(), user.getPassword())) {
+                if (user.getStatus() != 1) {
+                    log.warn("用户登录失败: 账号已被禁用, username={}", request.getUsername());
+                    return Result.error("账号已被禁用");
+                }
 
-        if (user != null && cn.hutool.crypto.digest.BCrypt.checkpw(request.getPassword(), user.getPassword())) {
-            if (user.getStatus() != 1) {
-                log.warn("用户登录失败: 账号已被禁用, username={}", request.getUsername());
-                return Result.error("账号已被禁用");
+                Map<String, Object> claims = new HashMap<>();
+                claims.put("userId", user.getId());
+                claims.put("role", user.getRole());
+                claims.put("gender", user.getGender());
+                
+                String token = jwtTokenUtil.generateToken(user.getUsername(), claims);
+                log.info("用户登录成功: username={}, role={}", user.getUsername(), user.getRoleName());
+                
+                Map<String, Object> data = new HashMap<>();
+                data.put("access_token", token);
+                data.put("token_type", "Bearer");
+                data.put("expires_in", 86400);
+                data.put("user", user);
+                
+                return Result.success(data);
+            } else {
+                log.warn("用户登录失败: 用户名或密码错误, username={}", request.getUsername());
+                return Result.error("用户名或密码错误");
             }
-
-            Map<String, Object> claims = new HashMap<>();
-            claims.put("userId", user.getId());
-            claims.put("role", user.getRole());
-            claims.put("gender", user.getGender());
-            
-            String token = jwtTokenUtil.generateToken(user.getUsername(), claims);
-            log.info("用户登录成功: username={}, role={}", user.getUsername(), user.getRoleName());
-            
-            Map<String, Object> data = new HashMap<>();
-            data.put("access_token", token);
-            data.put("token_type", "Bearer");
-            data.put("expires_in", 86400);
-            data.put("user", user);
-            
-            return Result.success(data);
-        } else {
-            log.warn("用户登录失败: 用户名或密码错误, username={}, 数据库中是否存在该用户: {}, 密码是否匹配: {}", 
-                     request.getUsername(), 
-                     user != null, 
-                     user != null && BCrypt.checkpw(request.getPassword(), user.getPassword()));
-            return Result.error("用户名或密码错误");
+        } catch (Exception e) {
+            log.error("登录过程发生异常: username='{}'", request.getUsername(), e);
+            return Result.error("服务器内部错误: " + e.getMessage());
         }
     }
 

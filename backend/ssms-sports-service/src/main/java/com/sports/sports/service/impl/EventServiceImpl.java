@@ -4,14 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.PageResult;
+import com.sports.sports.common.exception.BusinessException;
 import com.sports.sports.entity.Event;
 import com.sports.sports.mapper.EventMapper;
 import com.sports.sports.service.EventService;
 import com.sports.sports.service.RegistrationService;
 import com.sports.sports.service.ScheduleService;
 import com.sports.sports.service.ScoreService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,19 +21,16 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
 
-    @Autowired
-    private EventMapper eventMapper;
+    private final EventMapper eventMapper;
 
-    @Autowired
-    private RegistrationService registrationService;
+    private final RegistrationService registrationService;
 
-    @Autowired
-    private ScheduleService scheduleService;
+    private final ScheduleService scheduleService;
 
-    @Autowired
-    private ScoreService scoreService;
+    private final ScoreService scoreService;
 
     @Override
     public PageResult<Event> getPage(Integer pageNum, Integer pageSize, Long meetingId, String name, String category, Integer genderLimit, Integer status) {
@@ -45,7 +43,7 @@ public class EventServiceImpl implements EventService {
     public Event getById(Long id) {
         Event event = eventMapper.selectEventDetail(id);
         if (event == null) {
-            throw new RuntimeException("比赛项目不存在");
+            throw new BusinessException("比赛项目不存在");
         }
         return event;
     }

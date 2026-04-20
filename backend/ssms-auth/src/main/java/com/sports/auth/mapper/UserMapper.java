@@ -7,6 +7,8 @@ import com.sports.auth.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
@@ -16,4 +18,6 @@ public interface UserMapper extends BaseMapper<User> {
                                 @Param("role") Integer role,
                                 @Param("college") String college,
                                 @Param("status") Integer status);
+
+    List<com.sports.auth.entity.vo.UserVO> selectUserVOListByIds(@Param("ids") List<Long> ids);
 }

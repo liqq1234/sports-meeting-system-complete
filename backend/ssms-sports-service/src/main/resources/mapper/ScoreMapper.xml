@@ -4,19 +4,13 @@
 
     <select id="selectScorePage" resultType="com.sports.sports.entity.Score">
         SELECT s.*,
-               u.username AS user_name,
-               u.real_name AS user_real_name,
-               u.college AS user_college,
                e.name AS event_name,
                e.score_unit AS score_unit,
                e.score_type AS score_type,
-               m.name AS meeting_name,
-               rc.real_name AS recorder_name
+               m.name AS meeting_name
         FROM t_score s
-        LEFT JOIN ssms_auth.t_user u ON s.user_id = u.id
         LEFT JOIN t_event e ON s.event_id = e.id
         LEFT JOIN t_meeting m ON s.meeting_id = m.id
-        LEFT JOIN ssms_auth.t_user rc ON s.recorded_by = rc.id
         WHERE s.deleted = 0
         <if test="meetingId != null">
             AND s.meeting_id = #{meetingId}
@@ -30,21 +24,15 @@
         <if test="status != null">
             AND s.status = #{status}
         </if>
-        <if test="keyword != null and keyword != ''">
-            AND (u.real_name LIKE CONCAT('%', #{keyword}, '%') OR u.username LIKE CONCAT('%', #{keyword}, '%'))
-        </if>
         ORDER BY s.event_id ASC, s.ranking ASC
     </select>
 
     <select id="selectEventScores" resultType="com.sports.sports.entity.Score">
         SELECT s.*,
-               u.real_name AS user_real_name,
-               u.college AS user_college,
                e.name AS event_name,
                e.score_unit AS score_unit,
                e.score_type AS score_type
         FROM t_score s
-        LEFT JOIN ssms_auth.t_user u ON s.user_id = u.id
         LEFT JOIN t_event e ON s.event_id = e.id
         WHERE s.event_id = #{eventId} AND s.deleted = 0
         ORDER BY s.ranking ASC
@@ -68,38 +56,32 @@
     </select>
 
     <select id="selectCollegeRanking" resultType="java.util.Map">
-        SELECT u.college,
+        SELECT s.user_id,
                SUM(s.points) AS total_points,
                SUM(CASE WHEN s.ranking = 1 THEN 1 ELSE 0 END) AS gold,
                SUM(CASE WHEN s.ranking = 2 THEN 1 ELSE 0 END) AS silver,
-               SUM(CASE WHEN s.ranking = 3 THEN 1 ELSE 0 END) AS bronze,
-               COUNT(DISTINCT s.user_id) AS athlete_count
+               SUM(CASE WHEN s.ranking = 3 THEN 1 ELSE 0 END) AS bronze
         FROM t_score s
-        LEFT JOIN ssms_auth.t_user u ON s.user_id = u.id
         WHERE s.deleted = 0 AND s.status >= 2
         <if test="meetingId != null">
             AND s.meeting_id = #{meetingId}
         </if>
-        GROUP BY u.college
-        ORDER BY total_points DESC, gold DESC, silver DESC, bronze DESC
+        GROUP BY s.user_id
     </select>
 
     <select id="selectTopAthletes" resultType="java.util.Map">
-        SELECT u.real_name,
-               u.college,
-               u.class_name,
+        SELECT s.user_id,
                SUM(s.points) AS total_points,
                COUNT(*) AS event_count,
                SUM(CASE WHEN s.ranking = 1 THEN 1 ELSE 0 END) AS gold,
                SUM(CASE WHEN s.ranking = 2 THEN 1 ELSE 0 END) AS silver,
                SUM(CASE WHEN s.ranking = 3 THEN 1 ELSE 0 END) AS bronze
         FROM t_score s
-        LEFT JOIN ssms_auth.t_user u ON s.user_id = u.id
         WHERE s.deleted = 0 AND s.status >= 2
         <if test="meetingId != null">
             AND s.meeting_id = #{meetingId}
         </if>
-        GROUP BY s.user_id, u.real_name, u.college, u.class_name
+        GROUP BY s.user_id
         ORDER BY total_points DESC, gold DESC
         LIMIT #{limit}
     </select>

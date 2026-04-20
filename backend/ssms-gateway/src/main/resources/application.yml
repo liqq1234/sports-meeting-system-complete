@@ -39,6 +39,19 @@ spring:
             - Path=/api/medical/**
           filters:
             - StripPrefix=2
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:9090"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
 
 jwt:
   secret: sports-meeting-system-secret-key-2026-03-19
@@ -46,6 +59,7 @@ jwt:
   white-list:
     - /api/auth/login
     - /api/auth/register
+    - /api/auth/logout
     - /api/sports/public/**
     - /doc.html
     - /webjars/**

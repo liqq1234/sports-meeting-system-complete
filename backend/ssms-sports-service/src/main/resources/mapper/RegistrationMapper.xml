@@ -4,18 +4,11 @@
 
     <select id="selectRegistrationPage" resultType="com.sports.sports.entity.Registration">
         SELECT r.*,
-               u.username AS user_name,
-               u.real_name AS user_real_name,
-               u.college AS user_college,
-               u.class_name AS user_class_name,
                e.name AS event_name,
-               m.name AS meeting_name,
-               rv.real_name AS reviewer_name
+               m.name AS meeting_name
         FROM t_registration r
-        LEFT JOIN ssms_auth.t_user u ON r.user_id = u.id
         LEFT JOIN t_event e ON r.event_id = e.id
         LEFT JOIN t_meeting m ON r.meeting_id = m.id
-        LEFT JOIN ssms_auth.t_user rv ON r.reviewed_by = rv.id
         WHERE r.deleted = 0
         <if test="meetingId != null">
             AND r.meeting_id = #{meetingId}
@@ -28,9 +21,6 @@
         </if>
         <if test="status != null">
             AND r.status = #{status}
-        </if>
-        <if test="keyword != null and keyword != ''">
-            AND (u.real_name LIKE CONCAT('%', #{keyword}, '%') OR u.username LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY r.create_time DESC
     </select>
@@ -58,18 +48,14 @@
     </select>
 
     <select id="selectCollegeRegistrationStats" resultType="java.util.Map">
-        SELECT u.college,
-               COUNT(*) AS total,
-               COUNT(DISTINCT r.user_id) AS athlete_count,
-               COUNT(DISTINCT r.event_id) AS event_count
+        SELECT r.user_id,
+               COUNT(*) AS total
         FROM t_registration r
-        LEFT JOIN ssms_auth.t_user u ON r.user_id = u.id
         WHERE r.deleted = 0 AND r.status = 1
         <if test="meetingId != null">
             AND r.meeting_id = #{meetingId}
         </if>
-        GROUP BY u.college
-        ORDER BY total DESC
+        GROUP BY r.user_id
     </select>
 
 </mapper>

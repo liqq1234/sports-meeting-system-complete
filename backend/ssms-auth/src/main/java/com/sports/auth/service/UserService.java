@@ -22,4 +22,6 @@ public interface UserService {
     void updateProfile(User user);
 
     void changePassword(Long userId, String oldPassword, String newPassword);
+
+    java.util.List<com.sports.auth.entity.vo.UserVO> listUserVOsByIds(java.util.List<Long> ids);
 }

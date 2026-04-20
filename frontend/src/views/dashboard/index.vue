@@ -2,46 +2,13 @@
   <div class="page-container">
     <!-- 系统概览卡片 -->
     <el-row :gutter="16" class="overview-cards">
-      <el-col :span="6">
+      <el-col :span="6" v-for="(item, index) in overviewList" :key="index">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-item">
-            <div class="stat-icon" style="background: #409EFF"><i class="el-icon-user"></i></div>
+            <div class="stat-icon" :style="{ background: item.color }"><i :class="item.icon"></i></div>
             <div class="stat-info">
-              <p class="stat-value">{{ overview.totalUsers || 0 }}</p>
-              <p class="stat-label">用户总数</p>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-item">
-            <div class="stat-icon" style="background: #67C23A"><i class="el-icon-trophy"></i></div>
-            <div class="stat-info">
-              <p class="stat-value">{{ overview.meetingCount || 0 }}</p>
-              <p class="stat-label">运动会总数</p>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-item">
-            <div class="stat-icon" style="background: #E6A23C"><i class="el-icon-s-custom"></i></div>
-            <div class="stat-info">
-              <p class="stat-value">{{ overview.athleteCount || 0 }}</p>
-              <p class="stat-label">运动员数</p>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-item">
-            <div class="stat-icon" style="background: #F56C6C"><i class="el-icon-document-checked"></i></div>
-            <div class="stat-info">
-              <p class="stat-value">{{ overview.totalRegistrations || 0 }}</p>
-              <p class="stat-label">报名总数</p>
+              <p class="stat-value">{{ item.value || 0 }}</p>
+              <p class="stat-label">{{ item.label }}</p>
             </div>
           </div>
         </el-card>
@@ -58,24 +25,9 @@
     <!-- 运动会详细数据 -->
     <template v-if="selectedMeeting">
       <el-row :gutter="16" style="margin-top: 16px">
-        <el-col :span="6">
+        <el-col :span="6" v-for="(item, index) in detailStats" :key="index">
           <el-card shadow="hover" class="stat-card mini">
-            <div class="stat-mini"><span class="num">{{ dashboard.eventCount || 0 }}</span><span class="txt">比赛项目</span></div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card mini">
-            <div class="stat-mini"><span class="num">{{ dashboard.registrationTotal || 0 }}</span><span class="txt">报名人次</span></div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card mini">
-            <div class="stat-mini"><span class="num">{{ dashboard.registrationApproved || 0 }}</span><span class="txt">已通过审核</span></div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stat-card mini">
-            <div class="stat-mini"><span class="num">{{ dashboard.scorePublished || 0 }}</span><span class="txt">已公布成绩</span></div>
+            <div class="stat-mini"><span class="num">{{ item.value || 0 }}</span><span class="txt">{{ item.label }}</span></div>
           </el-card>
         </el-col>
       </el-row>
@@ -84,13 +36,13 @@
         <el-col :span="12">
           <el-card shadow="never">
             <div slot="header"><b>各项目报名统计</b></div>
-            <div ref="regChart" style="height: 350px"></div>
+            <e-chart :options="regOptions" height="350px" />
           </el-card>
         </el-col>
         <el-col :span="12">
           <el-card shadow="never">
             <div slot="header"><b>项目分类统计</b></div>
-            <div ref="eventChart" style="height: 350px"></div>
+            <e-chart :options="eventOptions" height="350px" />
           </el-card>
         </el-col>
       </el-row>
@@ -99,13 +51,13 @@
         <el-col :span="12">
           <el-card shadow="never">
             <div slot="header"><b>学院报名统计</b></div>
-            <div ref="collegeChart" style="height: 350px"></div>
+            <e-chart :options="collegeOptions" height="350px" />
           </el-card>
         </el-col>
         <el-col :span="12">
           <el-card shadow="never">
             <div slot="header"><b>参赛运动员性别分布</b></div>
-            <div ref="genderChart" style="height: 350px"></div>
+            <e-chart :options="genderOptions" height="350px" />
           </el-card>
         </el-col>
       </el-row>
@@ -113,8 +65,8 @@
       <el-row :gutter="16" style="margin-top: 16px">
         <el-col :span="24">
           <el-card shadow="never">
-            <div slot="header"><b>学院积分排名（ECharts 大屏）</b></div>
-            <div ref="rankChart" style="height: 350px"></div>
+            <div slot="header"><b>学院积分排名</b></div>
+            <e-chart :options="rankOptions" height="400px" />
           </el-card>
         </el-col>
       </el-row>
@@ -140,10 +92,11 @@
 <script>
 import { getOverview, getDashboard } from '@/api/statistics'
 import { getMeetingList } from '@/api/meeting'
-import * as echarts from 'echarts'
+import EChart from '@/components/Charts/EChart.vue'
 
 export default {
   name: 'Dashboard',
+  components: { EChart },
   data() {
     return {
       overview: {},
@@ -152,50 +105,26 @@ export default {
       dashboard: {}
     }
   },
-  created() {
-    this.loadOverview()
-    this.loadMeetings()
-  },
-  mounted() {
-    this._resizeHandler = () => {
-      this._charts && this._charts.forEach(c => c && c.resize())
-    }
-    window.addEventListener('resize', this._resizeHandler)
-  },
-  beforeDestroy() {
-    window.removeEventListener('resize', this._resizeHandler)
-    this._charts && this._charts.forEach(c => c && c.dispose())
-  },
-  methods: {
-    async loadOverview() {
-      const res = await getOverview()
-      this.overview = res.data || {}
+  computed: {
+    overviewList() {
+      return [
+        { label: '用户总数', value: this.overview.totalUsers, icon: 'el-icon-user', color: '#409EFF' },
+        { label: '运动会总数', value: this.overview.meetingCount, icon: 'el-icon-trophy', color: '#67C23A' },
+        { label: '运动员数', value: this.overview.athleteCount, icon: 'el-icon-s-custom', color: '#E6A23C' },
+        { label: '报名总数', value: this.overview.totalRegistrations, icon: 'el-icon-document-checked', color: '#F56C6C' }
+      ]
     },
-    async loadMeetings() {
-      const res = await getMeetingList()
-      this.meetingList = res.data || []
-      if (this.meetingList.length > 0) {
-        this.selectedMeeting = this.meetingList[0].id
-        this.loadDashboard()
-      }
+    detailStats() {
+      return [
+        { label: '比赛项目', value: this.dashboard.eventCount },
+        { label: '报名人次', value: this.dashboard.registrationTotal },
+        { label: '已通过审核', value: this.dashboard.registrationApproved },
+        { label: '已公布成绩', value: this.dashboard.scorePublished }
+      ]
     },
-    async loadDashboard() {
-      if (!this.selectedMeeting) return
-      const res = await getDashboard(this.selectedMeeting)
-      this.dashboard = res.data || {}
-      this.$nextTick(() => {
-        this.renderRegChart()
-        this.renderEventChart()
-        this.renderCollegeChart()
-        this.renderGenderChart()
-        this.renderRankChart()
-      })
-    },
-    renderRegChart() {
-      if (!this.$refs.regChart) return
-      const chart = echarts.init(this.$refs.regChart)
+    regOptions() {
       const data = this.dashboard.registrationStats || []
-      chart.setOption({
+      return {
         tooltip: { trigger: 'axis' },
         xAxis: { type: 'category', data: data.map(d => d.event_name), axisLabel: { rotate: 30, fontSize: 11 } },
         yAxis: { type: 'value', name: '人数' },
@@ -206,28 +135,23 @@ export default {
         ],
         legend: { bottom: 0 },
         grid: { bottom: 60, left: 50, right: 20 }
-      })
+      }
     },
-    renderEventChart() {
-      if (!this.$refs.eventChart) return
-      const chart = echarts.init(this.$refs.eventChart)
+    eventOptions() {
       const data = this.dashboard.eventStats || []
-      chart.setOption({
+      return {
         tooltip: { trigger: 'item' },
         legend: { bottom: 0 },
         series: [{
-          type: 'pie',
-          radius: ['40%', '65%'],
+          type: 'pie', radius: ['40%', '65%'],
           data: data.map(d => ({ name: d.category, value: d.event_count })),
-          label: { formatter: '{b}: {c}个 ({d}%)' }
+          label: { formatter: '{b}: {c} ({d}%)' }
         }]
-      })
+      }
     },
-    renderCollegeChart() {
-      if (!this.$refs.collegeChart) return
-      const chart = echarts.init(this.$refs.collegeChart)
+    collegeOptions() {
       const data = this.dashboard.collegeRegistrationStats || []
-      chart.setOption({
+      return {
         tooltip: { trigger: 'axis' },
         xAxis: { type: 'category', data: data.map(d => d.college), axisLabel: { rotate: 30, fontSize: 11 } },
         yAxis: { type: 'value', name: '人数' },
@@ -237,55 +161,61 @@ export default {
         ],
         legend: { bottom: 0 },
         grid: { bottom: 60, left: 50, right: 20 }
-      })
-      this._charts = this._charts || []
-      this._charts.push(chart)
+      }
     },
-    renderGenderChart() {
-      if (!this.$refs.genderChart) return
-      const chart = echarts.init(this.$refs.genderChart)
+    genderOptions() {
       const gender = this.dashboard.genderDistribution || {}
-      chart.setOption({
+      return {
         tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
         legend: { bottom: 0 },
         series: [{
-          type: 'pie',
-          radius: ['40%', '65%'],
+          type: 'pie', radius: ['40%', '65%'],
           data: [
             { name: '男', value: gender.male || 0, itemStyle: { color: '#409EFF' } },
             { name: '女', value: gender.female || 0, itemStyle: { color: '#F56C6C' } }
           ],
-          label: { formatter: '{b}: {c}人 ({d}%)' },
-          emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } }
+          label: { formatter: '{b}: {c}人 ({d}%)' }
         }]
-      })
-      this._charts = this._charts || []
-      this._charts.push(chart)
+      }
     },
-    renderRankChart() {
-      if (!this.$refs.rankChart) return
-      const chart = echarts.init(this.$refs.rankChart)
+    rankOptions() {
       const data = [...(this.dashboard.collegeRanking || [])].reverse()
-      chart.setOption({
+      return {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: 120, right: 20, bottom: 20, top: 20 },
+        grid: { left: 120, right: 40, bottom: 20, top: 20 },
         xAxis: { type: 'value', name: '积分' },
         yAxis: { type: 'category', data: data.map(d => d.college), axisLabel: { fontSize: 12 } },
         series: [{
-          name: '总积分',
-          type: 'bar',
-          data: data.map(d => d.total_points || 0),
+          name: '总积分', type: 'bar', data: data.map(d => d.total_points || 0),
           itemStyle: {
-            color: function(params) {
-              const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de']
-              return colors[params.dataIndex % colors.length]
-            }
+            color: (params) => ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de'][params.dataIndex % 5]
           },
           label: { show: true, position: 'right' }
         }]
-      })
-      this._charts = this._charts || []
-      this._charts.push(chart)
+      }
+    }
+  },
+  created() {
+    this.loadOverview()
+    this.loadMeetings()
+  },
+  methods: {
+    async loadOverview() {
+      const res = await getOverview()
+      this.overview = res.data || {}
+    },
+    async loadMeetings() {
+      const res = await getMeetingList()
+      this.meetingList = res.data || []
+      if (this.meetingList.length > 0 && !this.selectedMeeting) {
+        this.selectedMeeting = this.meetingList[0].id
+        this.loadDashboard()
+      }
+    },
+    async loadDashboard() {
+      if (!this.selectedMeeting) return
+      const res = await getDashboard(this.selectedMeeting)
+      this.dashboard = res.data || {}
     }
   }
 }

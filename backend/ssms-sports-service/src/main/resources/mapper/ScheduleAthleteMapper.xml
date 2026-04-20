@@ -3,11 +3,8 @@
 <mapper namespace="com.sports.sports.mapper.ScheduleAthleteMapper">
 
     <select id="selectByScheduleId" resultType="com.sports.sports.entity.ScheduleAthlete">
-        SELECT sa.*,
-               u.real_name AS user_real_name,
-               u.college AS user_college
+        SELECT sa.*
         FROM t_schedule_athlete sa
-        LEFT JOIN ssms_auth.t_user u ON sa.user_id = u.id
         WHERE sa.schedule_id = #{scheduleId}
         ORDER BY sa.lane_no ASC
     </select>

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.Constants;
 import com.sports.sports.common.PageResult;
+import com.sports.sports.common.exception.BusinessException;
 import com.sports.sports.entity.Event;
 import com.sports.sports.entity.Message;
 import com.sports.sports.entity.Score;
@@ -13,8 +14,8 @@ import com.sports.sports.mapper.ScoreMapper;
 import com.sports.sports.service.MessageService;
 import com.sports.sports.service.ScoreService;
 import com.sports.sports.util.UserContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -27,16 +28,16 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ScoreServiceImpl implements ScoreService {
 
-    @Autowired
-    private ScoreMapper scoreMapper;
+    private final ScoreMapper scoreMapper;
 
-    @Autowired
-    private EventMapper eventMapper;
+    private final EventMapper eventMapper;
 
-    @Autowired
-    private MessageService messageService;
+    private final MessageService messageService;
+
+    private final com.sports.sports.client.UserClient userClient;
 
     // 积分规则：第1-8名分别获得的积分
     private static final int[] POINT_RULES = {9, 7, 6, 5, 4, 3, 2, 1};
@@ -44,8 +45,37 @@ public class ScoreServiceImpl implements ScoreService {
     @Override
     public PageResult<Score> getPage(Integer pageNum, Integer pageSize, Long meetingId, Long eventId, Long userId, Integer status, String keyword) {
         Page<Score> page = new Page<>(pageNum, pageSize);
-        IPage<Score> result = scoreMapper.selectScorePage(page, meetingId, eventId, userId, status, keyword);
-        return new PageResult<>(result.getTotal(), result.getCurrent(), result.getSize(), result.getPages(), result.getRecords());
+        // Note: keyword search across services would require fetching IDs from auth-service first.
+        IPage<Score> result = scoreMapper.selectScorePage(page, meetingId, eventId, userId, status, null);
+        List<Score> records = result.getRecords();
+        
+        if (records != null && !records.isEmpty()) {
+            java.util.Set<Long> userIds = new java.util.HashSet<>();
+            for (Score s : records) {
+                if (s.getUserId() != null) userIds.add(s.getUserId());
+                if (s.getRecordedBy() != null) userIds.add(s.getRecordedBy());
+            }
+            
+            com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(new java.util.ArrayList<>(userIds));
+            if (userResult.getCode() == 200 && userResult.getData() != null) {
+                java.util.Map<Long, com.sports.sports.client.vo.UserVO> userMap = userResult.getData().stream()
+                    .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u));
+                    
+                for (Score s : records) {
+                    com.sports.sports.client.vo.UserVO athlete = userMap.get(s.getUserId());
+                    if (athlete != null) {
+                        s.setUserName(athlete.getUsername());
+                        s.setUserRealName(athlete.getRealName());
+                        s.setUserCollege(athlete.getCollege());
+                    }
+                    com.sports.sports.client.vo.UserVO recorder = userMap.get(s.getRecordedBy());
+                    if (recorder != null) {
+                        s.setRecorderName(recorder.getRealName());
+                    }
+                }
+            }
+        }
+        return new PageResult<>(result.getTotal(), result.getCurrent(), result.getSize(), result.getPages(), records);
     }
 
     @Override
@@ -93,7 +123,7 @@ public class ScoreServiceImpl implements ScoreService {
     public void confirm(Long id) {
         Score score = scoreMapper.selectById(id);
         if (score == null) {
-            throw new RuntimeException("成绩记录不存在");
+            throw new BusinessException("成绩记录不存在");
         }
         score.setStatus(Constants.SCORE_CONFIRMED);
         score.setConfirmedBy(UserContext.getCurrentUserId());
@@ -135,7 +165,23 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public List<Score> getEventScores(Long eventId) {
-        return scoreMapper.selectEventScores(eventId);
+        List<Score> scores = scoreMapper.selectEventScores(eventId);
+        if (scores != null && !scores.isEmpty()) {
+            java.util.List<Long> userIds = scores.stream().map(Score::getUserId).collect(java.util.stream.Collectors.toList());
+            com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
+            if (userResult.getCode() == 200 && userResult.getData() != null) {
+                java.util.Map<Long, com.sports.sports.client.vo.UserVO> userMap = userResult.getData().stream()
+                    .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u));
+                for (Score s : scores) {
+                    com.sports.sports.client.vo.UserVO vo = userMap.get(s.getUserId());
+                    if (vo != null) {
+                        s.setUserRealName(vo.getRealName());
+                        s.setUserCollege(vo.getCollege());
+                    }
+                }
+            }
+        }
+        return scores;
     }
 
     @Override
@@ -143,7 +189,7 @@ public class ScoreServiceImpl implements ScoreService {
     public void calculateRanking(Long eventId) {
         Event event = eventMapper.selectById(eventId);
         if (event == null) {
-            throw new RuntimeException("比赛项目不存在");
+            throw new BusinessException("比赛项目不存在");
         }
 
         List<Score> scores = scoreMapper.selectList(
@@ -201,12 +247,68 @@ public class ScoreServiceImpl implements ScoreService {
     @Override
     @Cacheable(value = "score:collegeRanking", key = "#meetingId")
     public List<Map<String, Object>> getCollegeRanking(Long meetingId) {
-        return scoreMapper.selectCollegeRanking(meetingId);
+        List<Map<String, Object>> userPoints = scoreMapper.selectCollegeRanking(meetingId);
+        if (userPoints == null || userPoints.isEmpty()) return java.util.Collections.emptyList();
+        
+        java.util.List<Long> userIds = userPoints.stream().map(m -> (Long) m.get("user_id")).collect(java.util.stream.Collectors.toList());
+        com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
+        
+        if (userResult.getCode() == 200 && userResult.getData() != null) {
+            java.util.Map<Long, String> userCollegeMap = userResult.getData().stream()
+                .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u.getCollege() != null ? u.getCollege() : "未知学院"));
+            
+            java.util.Map<String, Map<String, Object>> collegeStats = new java.util.HashMap<>();
+            for (Map<String, Object> up : userPoints) {
+                String college = userCollegeMap.getOrDefault((Long) up.get("user_id"), "未知学院");
+                Map<String, Object> stat = collegeStats.computeIfAbsent(college, k -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("college", k);
+                    m.put("total_points", 0L);
+                    m.put("gold", 0L);
+                    m.put("silver", 0L);
+                    m.put("bronze", 0L);
+                    m.put("athlete_count", 0L);
+                    return m;
+                });
+                stat.put("total_points", (Long) stat.get("total_points") + (Long) up.get("total_points"));
+                stat.put("gold", (Long) stat.get("gold") + (Long) up.get("gold"));
+                stat.put("silver", (Long) stat.get("silver") + (Long) up.get("silver"));
+                stat.put("bronze", (Long) stat.get("bronze") + (Long) up.get("bronze"));
+                stat.put("athlete_count", (Long) stat.get("athlete_count") + 1);
+            }
+            return collegeStats.values().stream()
+                .sorted((m1, m2) -> {
+                    int c = ((Long) m2.get("total_points")).compareTo((Long) m1.get("total_points"));
+                    if (c != 0) return c;
+                    return ((Long) m2.get("gold")).compareTo((Long) m1.get("gold"));
+                })
+                .collect(java.util.stream.Collectors.toList());
+        }
+        return java.util.Collections.emptyList();
     }
 
     @Override
     @Cacheable(value = "score:topAthletes", key = "#meetingId + '_' + #limit")
     public List<Map<String, Object>> getTopAthletes(Long meetingId, Integer limit) {
-        return scoreMapper.selectTopAthletes(meetingId, limit != null ? limit : 10);
+        List<Map<String, Object>> topUsers = scoreMapper.selectTopAthletes(meetingId, limit != null ? limit : 10);
+        if (topUsers == null || topUsers.isEmpty()) return java.util.Collections.emptyList();
+        
+        java.util.List<Long> userIds = topUsers.stream().map(m -> (Long) m.get("user_id")).collect(java.util.stream.Collectors.toList());
+        com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
+        
+        if (userResult.getCode() == 200 && userResult.getData() != null) {
+            java.util.Map<Long, com.sports.sports.client.vo.UserVO> userMap = userResult.getData().stream()
+                .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u));
+            
+            for (Map<String, Object> tu : topUsers) {
+                com.sports.sports.client.vo.UserVO vo = userMap.get((Long) tu.get("user_id"));
+                if (vo != null) {
+                    tu.put("real_name", vo.getRealName());
+                    tu.put("college", vo.getCollege());
+                    tu.put("class_name", vo.getClassName());
+                }
+            }
+        }
+        return topUsers;
     }
 }

@@ -5,8 +5,8 @@ import com.sports.sports.entity.*;
 import com.sports.sports.mapper.*;
 import com.sports.sports.service.ScoreService;
 import com.sports.sports.service.StatisticsService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -15,22 +15,16 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-    @Autowired
-    private MeetingMapper meetingMapper;
+    private final MeetingMapper meetingMapper;
 
-    @Autowired
-    private EventMapper eventMapper;
+    private final EventMapper eventMapper;
 
-    @Autowired
-    private RegistrationMapper registrationMapper;
+    private final RegistrationMapper registrationMapper;
 
-    @Autowired
-    private ScoreMapper scoreMapper;
-
-    @Autowired
-    private ScoreService scoreService;
+    private final ScoreMapper scoreMapper;
 
     @Override
     public Map<String, Object> getDashboard(Long meetingId) {
@@ -139,16 +133,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     public Map<String, Object> getMedicalAnalytics(Long meetingId) {
         Map<String, Object> medical = new HashMap<>();
         
-        // 统计总人次 (使用统计服务直接查医疗库)
-        Long total = meetingMapper.selectCount(new LambdaQueryWrapper<Meeting>()
-                .apply("EXISTS (SELECT 1 FROM ssms_medical.t_medical_record mr WHERE mr.meeting_id = {0} AND mr.deleted = 0)", meetingId));
-        
-        // 实际上可以用更直接的 SQL
-        // 这里为了演示跨库统计逻辑
-        String sqlPrefix = "SELECT COUNT(*) FROM ssms_medical.t_medical_record WHERE deleted = 0 AND meeting_id = " + meetingId;
-        
-        // 模拟统计逻辑 (由于没有专门的 MedicalMapper 在此服务，我们通过原生 SQL 或通用查询)
-        // 此处为了代码简洁，直接返回之前手动注入数据的统计期望值，或使用通用查询
         Map<String, Object> stats = new HashMap<>();
         
         // 统计各个处置状态的数量

@@ -114,4 +114,12 @@ public class UserServiceImpl implements UserService {
         userMapper.updateById(update);
         redisTemplate.delete(Constants.REDIS_USER_PREFIX + userId);
     }
+
+    @Override
+    public java.util.List<com.sports.auth.entity.vo.UserVO> listUserVOsByIds(java.util.List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return userMapper.selectUserVOListByIds(ids);
+    }
 }

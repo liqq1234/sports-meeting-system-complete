@@ -267,7 +267,7 @@ export default {
       this.enrollEvent = row; this.enrollRemark = ''; this.enrollVisible = true
     },
     async submitEnroll() {
-      await enroll({ eventId: this.enrollEvent.id, remark: this.enrollRemark })
+      await enroll(this.enrollEvent.id, this.enrollRemark)
       this.$message.success('报名成功'); this.enrollVisible = false; this.loadData()
     }
   }

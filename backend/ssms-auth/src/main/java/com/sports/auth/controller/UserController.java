@@ -39,6 +39,12 @@ public class UserController {
         return Result.success(userService.getById(id));
     }
 
+    @ApiOperation("批量查询用户信息（Feign专用）")
+    @GetMapping("/listByIds")
+    public Result<java.util.List<com.sports.auth.entity.vo.UserVO>> listByIds(@RequestParam("ids") java.util.List<Long> ids) {
+        return Result.success(userService.listUserVOsByIds(ids));
+    }
+
     @ApiOperation("新增用户（管理员）")
     @PostMapping
     public Result<?> add(@RequestBody User user) {

@@ -4,13 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.PageResult;
+import com.sports.sports.common.exception.BusinessException;
 import com.sports.sports.entity.Meeting;
 import com.sports.sports.mapper.MeetingMapper;
 import com.sports.sports.service.EventService;
 import com.sports.sports.service.MeetingService;
 import com.sports.sports.util.UserContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +19,12 @@ import java.util.List;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MeetingServiceImpl implements MeetingService {
 
-    @Autowired
-    private MeetingMapper meetingMapper;
+    private final MeetingMapper meetingMapper;
 
-    @Autowired
-    private EventService eventService;
+    private final EventService eventService;
 
     @Override
     public PageResult<Meeting> getPage(Integer pageNum, Integer pageSize, String name, Integer status) {
@@ -37,7 +37,7 @@ public class MeetingServiceImpl implements MeetingService {
     public Meeting getById(Long id) {
         Meeting meeting = meetingMapper.selectById(id);
         if (meeting == null) {
-            throw new RuntimeException("运动会不存在");
+            throw new BusinessException("运动会不存在");
         }
         return meeting;
     }

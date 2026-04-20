@@ -4,21 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sports.sports.common.PageResult;
+import com.sports.sports.common.exception.BusinessException;
 import com.sports.sports.entity.Venue;
 import com.sports.sports.mapper.VenueMapper;
 import com.sports.sports.service.VenueService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class VenueServiceImpl implements VenueService {
 
-    @Autowired
-    private VenueMapper venueMapper;
+    private final VenueMapper venueMapper;
 
     @Override
     public PageResult<Venue> getPage(Integer pageNum, Integer pageSize, String name, String type, Integer status) {
@@ -42,7 +43,7 @@ public class VenueServiceImpl implements VenueService {
     public Venue getById(Long id) {
         Venue venue = venueMapper.selectById(id);
         if (venue == null) {
-            throw new RuntimeException("场地不存在");
+            throw new BusinessException("场地不存在");
         }
         return venue;
     }
