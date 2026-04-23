@@ -39,6 +39,12 @@ spring:
             - Path=/api/medical/**
           filters:
             - StripPrefix=2
+        - id: websocket-service
+          uri: lb://ssms-sports-service
+          predicates:
+            - Path=/api/ws/**
+          filters:
+            - StripPrefix=2
       globalcors:
         cors-configurations:
           '[/**]':
