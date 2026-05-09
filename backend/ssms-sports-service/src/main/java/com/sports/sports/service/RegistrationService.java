@@ -15,4 +15,6 @@ public interface RegistrationService {
     void deleteByMeetingId(Long meetingId);
     List<Map<String, Object>> getRegistrationStats(Long meetingId);
     List<Map<String, Object>> getCollegeRegistrationStats(Long meetingId);
+    void withdrawForMedicalReason(Long userId, Long eventId);
+    List<Registration> getApprovedRegistrations(Long userId, Long meetingId);
 }

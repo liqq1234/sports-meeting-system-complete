@@ -53,8 +53,8 @@
       </el-table>
 
       <el-pagination
-        :current-page="queryParams.current"
-        :page-size="queryParams.size"
+        :current-page="queryParams.pageNum"
+        :page-size="queryParams.pageSize"
         :total="total"
         layout="total, prev, pager, next"
         @current-change="getList"
@@ -63,31 +63,69 @@
 
     <!-- 弹窗 -->
     <el-dialog title="就诊登记 (伤病记录)" :visible.sync="open" width="600px">
-      <el-form ref="form" :model="form" label-width="80px">
+      <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="所属运动会" prop="meetingId">
-          <el-input v-model="form.meetingId" placeholder="运动会ID" />
+          <el-select v-model="form.meetingId" placeholder="请选择运动会" style="width:100%" @change="handleMeetingChange">
+            <el-option v-for="m in meetingList" :key="m.id" :label="m.name" :value="m.id" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="就诊人ID" prop="patientId">
-          <el-input v-model="form.patientId" placeholder="由参赛号或ID录入" />
+        <el-form-item label="就诊人" prop="patientId">
+          <el-select
+            v-model="form.patientId"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="请输入姓名或学号搜索"
+            :remote-method="searchUsers"
+            :loading="userLoading"
+            style="width:100%"
+            @change="handleUserChange">
+            <el-option
+              v-for="item in userOptions"
+              :key="item.id"
+              :label="item.realName"
+              :value="item.id">
+            </el-option>
+          </el-select>
         </el-form-item>
+        <el-form-item label="关联项目" prop="eventId">
+          <el-select v-model="form.eventId" placeholder="请选择该运动员参加的项目" style="width:100%" :disabled="!form.patientId">
+            <el-option v-for="e in athleteEvents" :key="e.eventId" :label="e.eventName" :value="e.eventId" />
+          </el-select>
+        </el-form-item>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="体温 (℃)" prop="temperature">
+              <el-input-number v-model="form.temperature" :precision="1" :step="0.1" :max="45" style="width:100%"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="心率 (bpm)" prop="heartRate">
+              <el-input-number v-model="form.heartRate" :min="30" :max="250" style="width:100%"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="主诉症状" prop="symptoms">
           <el-input v-model="form.symptoms" placeholder="如：左踝扭伤, 中暑..." />
         </el-form-item>
-        <el-form-item label="诊断" prop="diagnosis">
-          <el-input v-model="form.diagnosis" placeholder="临床判断" />
+        <el-form-item label="临床诊断" prop="diagnosis">
+          <el-input v-model="form.diagnosis" placeholder="临床判断结果" />
         </el-form-item>
         <el-form-item label="处置结果" prop="disposition">
           <el-radio-group v-model="form.disposition">
-            <el-radio :label="0">返回比赛</el-radio>
             <el-radio :label="1">留院观察</el-radio>
             <el-radio :label="2">转院处理</el-radio>
+            <el-radio :label="0">普通就诊</el-radio>
           </el-radio-group>
+          <div v-if="form.disposition > 0" style="color: #F56C6C; font-size: 12px; margin-top: 5px;">
+            提示：该处置将导致运动员自动退出关联比赛项目
+          </div>
         </el-form-item>
         <el-form-item label="治疗细节" prop="treatment">
           <el-input v-model="form.treatment" type="textarea" placeholder="用药、冰敷、包扎等内容" />
         </el-form-item>
         <el-form-item label="接诊医生" prop="doctor">
-          <el-input v-model="form.doctor" placeholder="接诊人姓名" />
+          <el-input v-model="form.doctor" placeholder="接诊医生姓名" />
         </el-form-item>
       </el-form>
       <div slot="footer">
@@ -100,60 +138,176 @@
 
 <script>
 import { getMedicalRecords, addMedicalRecord, getMedicalAnalytics } from '@/api/medical'
+import { getMeetingList } from '@/api/meeting'
+import { getUserPage } from '@/api/user'
+import { getRegistrationPage, withdrawForMedical } from '@/api/registration'
 
 export default {
   name: 'MedicalRecords',
   data() {
     return {
       loading: true,
+      userLoading: false,
       open: false,
       recordList: [],
+      meetingList: [],
+      userOptions: [],
+      athleteEvents: [],
       total: 0,
       analytics: {
         totalRecords: 0,
         dispositionStats: { return: 0, observe: 0, transfer: 0 }
       },
       queryParams: {
-        current: 1,
-        size: 10,
-        meetingId: 1
+        pageNum: 1,
+        pageSize: 10,
+        meetingId: null
       },
       form: {},
+      rules: {
+        meetingId: [{ required: true, message: '请选择运动会', trigger: 'change' }],
+        patientId: [{ required: true, message: '请选择就诊人', trigger: 'change' }],
+        eventId: [{ required: true, message: '请选择关联项目', trigger: 'change' }],
+        symptoms: [{ required: true, message: '请输入主诉症状', trigger: 'blur' }],
+        diagnosis: [{ required: true, message: '请输入诊断结果', trigger: 'blur' }],
+        doctor: [{ required: true, message: '请输入医生姓名', trigger: 'blur' }]
+      },
       disMap: {
-        0: { label: '返回比赛', type: 'success' },
+        0: { label: '普通就诊', type: 'success' },
         1: { label: '留院观察', type: 'warning' },
         2: { label: '转院', type: 'danger' }
       }
     }
   },
   created() {
-    this.getList()
-    this.loadAnalytics()
+    this.loadMeetings()
   },
   methods: {
+    loadMeetings() {
+      getMeetingList().then(res => {
+        this.meetingList = res.data
+        if (this.meetingList.length > 0) {
+          this.queryParams.meetingId = this.meetingList[0].id
+          this.getList()
+          this.loadAnalytics()
+        }
+      })
+    },
     getList() {
       this.loading = true
+      console.log('--- [DEBUG] 正在拉取列表，参数:', this.queryParams)
       getMedicalRecords(this.queryParams).then(res => {
-        this.recordList = res.data.records
-        this.total = res.data.total
+        console.log('--- [DEBUG] 列表响应:', res.data)
+        this.recordList = res.data.records || []
+        this.total = Number(res.data.total) || 0
+        this.loading = false
+      }).catch(err => {
+        console.error('拉取失败:', err)
         this.loading = false
       })
     },
     loadAnalytics() {
-      getMedicalAnalytics({ meetingId: this.queryParams.meetingId || 1 }).then(res => {
+      getMedicalAnalytics({ meetingId: this.queryParams.meetingId }).then(res => {
         this.analytics = res.data
       })
     },
+    handleMeetingChange(val) {
+      this.queryParams.meetingId = val
+      this.getList()
+      this.loadAnalytics()
+    },
     handleAdd() {
-      this.form = { meetingId: 1, disposition: 0, visitTime: new Date() }
+      this.form = { 
+        meetingId: this.queryParams.meetingId, 
+        disposition: 0, 
+        visitTime: new Date(),
+        temperature: 36.5,
+        heartRate: 75
+      }
+      this.athleteEvents = []
+      this.userOptions = []
       this.open = true
     },
+    async searchUsers(query) {
+      if (query !== '') {
+        this.userLoading = true
+        try {
+          const res = await getUserPage({ keyword: query, role: 2 })
+          this.userOptions = res.data.records || []
+        } finally {
+          this.userLoading = false
+        }
+      }
+    },
+    handleUserChange(userId) {
+      if (!userId) {
+        this.athleteEvents = []
+        return
+      }
+      console.log('--- [DEBUG] 开始拉取报名项目 ---')
+      console.log('用户 ID:', userId, '类型:', typeof userId)
+      
+      getRegistrationPage({ userId }).then(res => {
+        console.log('后端原始响应 Res:', res)
+        const records = res.data.records || []
+        console.log('解析后的记录列表 Records:', records)
+        
+        this.athleteEvents = records.map(r => {
+          const id = r.eventId || r.event_id
+          const name = r.eventName || r.event_name
+          console.log(`处理单条记录 -> ID: ${id}, 名称: ${name}`)
+          return {
+            eventId: id,
+            eventName: name ? name : `未知项目(ID:${id})`
+          }
+        })
+
+        console.log('最终生成的下拉列表内容:', this.athleteEvents)
+
+        if (this.athleteEvents.length > 0) {
+          console.log(`成功找到 ${this.athleteEvents.length} 个关联项目，请手动选择。`)
+        } else {
+          this.form.eventId = null
+          this.$notify({
+            title: '未找到报名数据',
+            message: `用户ID ${userId} 名下没有查到任何报名项目。`,
+            type: 'warning'
+          })
+        }
+      }).catch(err => {
+        console.error('--- [DEBUG ERROR] 接口调用失败 ---', err)
+        this.$message.error('拉取报名项目失败，请检查后端 Sports 服务是否正常')
+      })
+    },
     submitForm() {
-      addMedicalRecord(this.form).then(() => {
-        this.$message.success('登记成功')
-        this.open = false
-        this.getList()
-        this.loadAnalytics()
+      this.$refs.form.validate(async valid => {
+        if (valid) {
+          try {
+            // 1. 保存就诊记录
+            await addMedicalRecord(this.form)
+            
+            // 2. 如果伤势严重，自动办理退赛
+            if (this.form.disposition > 0) {
+              await withdrawForMedical({
+                userId: this.form.patientId,
+                eventId: this.form.eventId
+              })
+              this.$notify({
+                title: '联动成功',
+                message: '运动员已因伤自动退出该比赛项目',
+                type: 'warning'
+              })
+            } else {
+              this.$message.success('登记成功')
+            }
+            
+            this.open = false
+            this.getList()
+            this.loadAnalytics()
+          } catch (e) {
+            console.error(e)
+          }
+        }
       })
     },
     calcPercent(key) {

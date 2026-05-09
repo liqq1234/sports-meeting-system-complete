@@ -57,6 +57,13 @@ public class ScoreController {
         return Result.success("批量录入成功");
     }
 
+    @ApiOperation("删除成绩")
+    @DeleteMapping("/{id}")
+    public Result<?> delete(@PathVariable Long id) {
+        scoreService.delete(id);
+        return Result.success("成绩删除成功");
+    }
+
     @ApiOperation("确认成绩")
     @PutMapping("/confirm/{id}")
     public Result<?> confirm(@PathVariable Long id) {

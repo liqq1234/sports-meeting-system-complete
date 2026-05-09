@@ -27,6 +27,12 @@ public class MaterialController {
         return Result.success(PageResult.build(materialService.getMaterialList(new Page<>(pageNum, pageSize), name)));
     }
 
+    @ApiOperation("查询所有物资")
+    @GetMapping("/list")
+    public Result<java.util.List<Material>> list() {
+        return Result.success(materialService.list());
+    }
+
     @ApiOperation("根据ID查询物资")
     @GetMapping("/{id}")
     public Result<Material> getById(@PathVariable Long id) {

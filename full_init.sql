@@ -41,8 +41,8 @@ INSERT INTO t_user (id, username, password, real_name, gender, phone, college, c
 (4, '2024001', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '王小明', 0, '13800000004', '软件学院', '软件2201', 2, 1),
 (5, '2024002', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '李小红', 1, '13800000005', '计算机学院', '计科2201', 2, 1),
 (6, '2024003', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '张小刚', 0, '13800000006', '电子学院', '电子2201', 2, 1),
-(10, 'referee03', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '陈平', 1, 1, '体育学院', NULL, 1, 1),
-(11, 'referee04', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '赵强', 1, 1, '体育学院', NULL, 1, 1),
+(10, 'referee03', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '陈平', 1, '13800000011', '体育学院', NULL, 1, 1),
+(11, 'referee04', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '赵强', 1, '13800000012', '体育学院', NULL, 1, 1),
 (12, '2024005', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '刘晨', 0, '13800000007', '计算机学院', '计科2201', 2, 1),
 (13, '2024006', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '陈明', 0, '13800000008', '经管学院', '工商2302', 2, 1),
 (14, '2024007', '$2a$10$vfAH3yfHCjH7ynR9wnyt3.OHcxdzIfJltXS4IBDiAytg0QphRZNVu', '杨洋', 0, '13800000009', '机械学院', '机电2203', 2, 1),
@@ -62,7 +62,7 @@ CREATE TABLE t_meeting (
     start_date  DATE         NOT NULL,
     end_date    DATE         NOT NULL,
     location    VARCHAR(200),
-    status      TINYINT      NOT NULL DEFAULT 0 COMMENT '0-筹备 1-报名 2-截止 3-进行 4-结束',
+    status      TINYINT      NOT NULL DEFAULT 0,
     enroll_start DATETIME,
     enroll_end   DATETIME,
     created_by  BIGINT,
@@ -184,7 +184,6 @@ CREATE TABLE t_notice (
     published_by BIGINT,
     deleted     TINYINT      NOT NULL DEFAULT 0,
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -199,23 +198,31 @@ CREATE TABLE t_message (
     related_id  BIGINT,
     deleted     TINYINT      NOT NULL DEFAULT 0,
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 初始业务数据
 INSERT INTO t_meeting (id, name, description, start_date, end_date, location, status, enroll_start, enroll_end) VALUES
-(1, '2026年度春季田径运动会', '全校年度体育盛事', '2026-04-20', '2026-04-22', '校本部主体育场', 1, '2026-03-01 08:00:00', '2026-12-31 23:59:59');
+(1, '2024年度春季田径运动会', '这是一年一度的全校春季田径运动会，旨在增强学生体质，展现青春活力。', '2024-04-20', '2024-04-22', '校本部主体育场', 3, '2024-03-01 08:00:00', '2024-04-10 18:00:00');
 
 INSERT INTO t_event (id, meeting_id, name, category, gender_limit, max_participants, event_date, start_time, venue, score_type, score_unit, status, referee_id) VALUES
-(1, 1, '男子100米', '径赛', 0, 48, '2026-04-20', '09:00:00', '主体育场-跑道', 0, '秒', 1, 2),
-(2, 1, '女子100米', '径赛', 1, 48, '2026-04-20', '10:00:00', '主体育场-跑道', 0, '秒', 1, 3),
-(3, 1, '男子跳远', '田赛', 0, 20, '2026-04-20', '09:30:00', '跳远沙坑', 1, '米', 1, 10),
-(4, 1, '男子铅球', '田赛', 0, 20, '2026-04-21', '08:30:00', '主体育场-北侧草坪', 1, '米', 0, 11),
-(5, 1, '女子400米', '径赛', 1, 32, '2026-04-21', '14:00:00', '主体育场-跑道', 0, '秒', 0, 2);
+(1, 1, '男子100米', '径赛', 0, 48, '2024-04-20', '09:00:00', '主体育场-跑道', 0, '秒', 1, 2),
+(2, 1, '女子100米', '径赛', 1, 48, '2024-04-20', '10:00:00', '主体育场-跑道', 0, '秒', 1, 3),
+(3, 1, '男子跳远', '田赛', 0, 20, '2024-04-20', '09:30:00', '跳远沙坑', 1, '米', 1, 10),
+(4, 1, '男子铅球', '田赛', 0, 20, '2024-04-21', '08:30:00', '主体育场-北侧草坪', 1, '米', 0, 11),
+(5, 1, '女子400米', '径赛', 1, 32, '2024-04-21', '14:00:00', '主体育场-跑道', 0, '秒', 0, 2),
+(6, 1, '男子4x100米接力', '径赛', 0, 16, '2024-04-22', '16:00:00', '主体育场-跑道', 0, '秒', 0, 3);
+
+INSERT INTO t_venue (name, location, capacity, type, status) VALUES
+('田径场A区', '东操场', 500, '田径场', 1),
+('田径场B区', '东操场', 300, '田径场', 1),
+('篮球馆', '体育馆一楼', 200, '体育馆', 1),
+('游泳馆', '游泳中心', 150, '游泳池', 1),
+('跳远沙坑', '东操场西侧', 50, '田赛场地', 1);
 
 INSERT INTO t_notice (title, content, type, meeting_id, is_top, status) VALUES
-('关于2026年春季运动会报名的通知', '报名已开启，请尽快完成报名。', 0, 1, 1, 1);
+('关于2024春季运动会报名的通知', '各位同学，2024年春季运动会报名已经开始，请通过系统及时完成报名。', 0, 1, 1, 1),
+('开幕式注意事项', '请各学院代表队于4月20日早晨8:00准时在操场集合参加开幕式。', 1, 1, 0, 1);
 
 -- ----------------------------------------------------------
 -- 3. SSMS_LOGISTICS (后勤物资)
@@ -237,11 +244,27 @@ CREATE TABLE t_material (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+DROP TABLE IF EXISTS t_material_allocation;
+CREATE TABLE t_material_allocation (
+    id           BIGINT   NOT NULL AUTO_INCREMENT,
+    meeting_id   BIGINT   NOT NULL,
+    applicant_id BIGINT   NOT NULL,
+    event_id     BIGINT,
+    purpose      VARCHAR(200),
+    status       TINYINT  NOT NULL DEFAULT 0,
+    items        JSON     NOT NULL,
+    deleted      TINYINT  NOT NULL DEFAULT 0,
+    create_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 INSERT INTO t_material (name, spec, unit, stock, threshold) VALUES
 ('电子秒表', '精确度0.01s', '块', 50, 5),
-('发令枪', '专业型', '支', 5, 1),
-('接力棒', '铝合金', '根', 20, 4),
-('号码牌', '反光', '套', 1000, 100);
+('发令枪', '专业比赛型', '支', 5, 1),
+('接力棒', '标准铝合金', '根', 20, 4),
+('号码牌', '反光纤维', '套', 1000, 100),
+('医用药箱', '标准型', '箱', 10, 2);
 
 -- ----------------------------------------------------------
 -- 4. SSMS_MEDICAL (医疗保障)
@@ -251,22 +274,25 @@ USE ssms_medical;
 
 DROP TABLE IF EXISTS t_medical_record;
 CREATE TABLE t_medical_record (
-    id          BIGINT   NOT NULL AUTO_INCREMENT,
-    meeting_id  BIGINT   NOT NULL,
-    patient_id  BIGINT   NOT NULL,
-    visit_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    patient_id  BIGINT       NOT NULL,
+    event_id    BIGINT,
     symptoms    TEXT,
-    diagnosis   TEXT,
+    diagnosis   VARCHAR(255),
     treatment   TEXT,
+    meeting_id  BIGINT,
+    visit_time  DATETIME     DEFAULT CURRENT_TIMESTAMP,
     doctor      VARCHAR(50),
-    disposition TINYINT  DEFAULT 0,
+    disposition TINYINT      DEFAULT 0,
     deleted     TINYINT      NOT NULL DEFAULT 0,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO t_medical_record (patient_id, symptoms, diagnosis, treatment, meeting_id, visit_time, doctor) VALUES
-(4, '肌肉抽搐', '腓肠肌痉挛', '按摩', 1, '2026-04-20 09:15:00', '张医生');
+INSERT INTO t_medical_record (patient_id, event_id, symptoms, diagnosis, treatment, meeting_id, visit_time, doctor) VALUES
+(4, 1, '百米冲刺后小腿肌肉抽搐', '小腿腓肠肌痉挛', '按摩推拿，喷涂云南白药', 1, '2024-04-20 09:15:00', '张医生'),
+(12, 3, '跳远试跳落坑时扭伤脚踝', '左踝关节轻度扭伤', '冰敷压迫，建议观察', 1, '2024-04-20 10:20:00', '王护士'),
+(5, 1, '终点冲刺后晕倒', '运动性低血糖、轻微中暑', '葡萄糖补充，阴凉处休息', 1, '2024-04-20 10:45:00', '李医生');
 
 SET FOREIGN_KEY_CHECKS = 1;
 

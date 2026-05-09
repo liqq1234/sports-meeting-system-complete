@@ -23,6 +23,7 @@ public class Constants {
     public static final int REG_APPROVED = 1;
     public static final int REG_REJECTED = 2;
     public static final int REG_CANCELLED = 3;
+    public static final int REG_MEDICAL_WITHDRAWN = 4; // 因伤退赛
 
     // 成绩状态
     public static final int SCORE_PENDING = 0;

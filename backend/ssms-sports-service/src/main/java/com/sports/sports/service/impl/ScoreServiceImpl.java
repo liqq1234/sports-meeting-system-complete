@@ -65,8 +65,8 @@ public class ScoreServiceImpl implements ScoreService {
                     com.sports.sports.client.vo.UserVO athlete = userMap.get(s.getUserId());
                     if (athlete != null) {
                         s.setUserName(athlete.getUsername());
-                        s.setUserRealName(athlete.getRealName());
-                        s.setUserCollege(athlete.getCollege());
+                        s.setAthleteName(athlete.getRealName());
+                        s.setAthleteCollege(athlete.getCollege());
                     }
                     com.sports.sports.client.vo.UserVO recorder = userMap.get(s.getRecordedBy());
                     if (recorder != null) {
@@ -87,10 +87,18 @@ public class ScoreServiceImpl implements ScoreService {
     })
     public void record(Score score) {
         // 检查是否已有成绩记录
-        Score existing = scoreMapper.selectOne(
-                new LambdaQueryWrapper<Score>()
-                        .eq(Score::getUserId, score.getUserId())
-                        .eq(Score::getEventId, score.getEventId()));
+        Score existing = null;
+        if (score.getId() != null) {
+            existing = scoreMapper.selectById(score.getId());
+        }
+        
+        if (existing == null && score.getUserId() != null && score.getEventId() != null) {
+            existing = scoreMapper.selectOne(
+                    new LambdaQueryWrapper<Score>()
+                            .eq(Score::getUserId, score.getUserId())
+                            .eq(Score::getEventId, score.getEventId()));
+        }
+
         if (existing != null) {
             // 更新已有成绩
             existing.setScoreValue(score.getScoreValue());
@@ -100,6 +108,10 @@ public class ScoreServiceImpl implements ScoreService {
             existing.setRecordedBy(UserContext.getCurrentUserId());
             scoreMapper.updateById(existing);
         } else {
+            // 插入新记录，确保必要字段不为空
+            if (score.getUserId() == null || score.getEventId() == null) {
+                throw new BusinessException("录入成绩失败：缺少运动员ID或项目ID");
+            }
             score.setStatus(Constants.SCORE_RECORDED);
             score.setRecordedBy(UserContext.getCurrentUserId());
             scoreMapper.insert(score);
@@ -141,6 +153,10 @@ public class ScoreServiceImpl implements ScoreService {
         // 先计算排名
         calculateRanking(eventId);
 
+        // 获取项目信息以取得单位
+        Event event = eventMapper.selectById(eventId);
+        String unit = (event != null && event.getScoreUnit() != null) ? event.getScoreUnit() : "";
+
         // 更新所有已确认成绩为已公布
         List<Score> scores = scoreMapper.selectList(
                 new LambdaQueryWrapper<Score>()
@@ -150,11 +166,18 @@ public class ScoreServiceImpl implements ScoreService {
             score.setStatus(Constants.SCORE_PUBLISHED);
             scoreMapper.updateById(score);
 
+            // 确定展示文本
+            String scoreDisplay = score.getScoreText();
+            if (scoreDisplay == null && score.getScoreValue() != null) {
+                // 格式化数值，去掉多余的0并拼接单位
+                scoreDisplay = score.getScoreValue().stripTrailingZeros().toPlainString() + unit;
+            }
+
             // 发送成绩通知
             Message msg = new Message();
             msg.setUserId(score.getUserId());
             msg.setTitle("成绩公布通知");
-            msg.setContent("您的比赛成绩已公布，成绩：" + score.getScoreText()
+            msg.setContent("您的比赛成绩已公布，成绩：" + (scoreDisplay != null ? scoreDisplay : "无")
                     + "，排名：第" + score.getRanking() + "名"
                     + (score.getPoints() > 0 ? "，获得" + score.getPoints() + "积分" : ""));
             msg.setType(2);
@@ -175,8 +198,8 @@ public class ScoreServiceImpl implements ScoreService {
                 for (Score s : scores) {
                     com.sports.sports.client.vo.UserVO vo = userMap.get(s.getUserId());
                     if (vo != null) {
-                        s.setUserRealName(vo.getRealName());
-                        s.setUserCollege(vo.getCollege());
+                        s.setAthleteName(vo.getRealName());
+                        s.setAthleteCollege(vo.getCollege());
                     }
                 }
             }
@@ -219,6 +242,17 @@ public class ScoreServiceImpl implements ScoreService {
     }
 
     @Override
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "score:distribution", allEntries = true),
+        @CacheEvict(value = "score:collegeRanking", allEntries = true),
+        @CacheEvict(value = "score:topAthletes", allEntries = true)
+    })
+    public void delete(Long id) {
+        scoreMapper.deleteById(id);
+    }
+
+    @Override
     @Caching(evict = {
         @CacheEvict(value = "score:distribution", allEntries = true),
         @CacheEvict(value = "score:collegeRanking", allEntries = true),
@@ -250,7 +284,16 @@ public class ScoreServiceImpl implements ScoreService {
         List<Map<String, Object>> userPoints = scoreMapper.selectCollegeRanking(meetingId);
         if (userPoints == null || userPoints.isEmpty()) return java.util.Collections.emptyList();
         
-        java.util.List<Long> userIds = userPoints.stream().map(m -> (Long) m.get("user_id")).collect(java.util.stream.Collectors.toList());
+        java.util.List<Long> userIds = userPoints.stream()
+            .map(m -> {
+                Object id = m.get("user_id");
+                if (id == null) id = m.get("USER_ID");
+                return id instanceof Number ? ((Number) id).longValue() : null;
+            })
+            .filter(java.util.Objects::nonNull)
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (userIds.isEmpty()) return java.util.Collections.emptyList();
         com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
         
         if (userResult.getCode() == 200 && userResult.getData() != null) {
@@ -259,7 +302,11 @@ public class ScoreServiceImpl implements ScoreService {
             
             java.util.Map<String, Map<String, Object>> collegeStats = new java.util.HashMap<>();
             for (Map<String, Object> up : userPoints) {
-                String college = userCollegeMap.getOrDefault((Long) up.get("user_id"), "未知学院");
+                Object uidObj = up.get("user_id");
+                if (uidObj == null) uidObj = up.get("USER_ID");
+                Long uid = uidObj instanceof Number ? ((Number) uidObj).longValue() : null;
+                
+                String college = userCollegeMap.getOrDefault(uid, "未知学院");
                 Map<String, Object> stat = collegeStats.computeIfAbsent(college, k -> {
                     Map<String, Object> m = new java.util.HashMap<>();
                     m.put("college", k);
@@ -270,10 +317,17 @@ public class ScoreServiceImpl implements ScoreService {
                     m.put("athlete_count", 0L);
                     return m;
                 });
-                stat.put("total_points", (Long) stat.get("total_points") + (Long) up.get("total_points"));
-                stat.put("gold", (Long) stat.get("gold") + (Long) up.get("gold"));
-                stat.put("silver", (Long) stat.get("silver") + (Long) up.get("silver"));
-                stat.put("bronze", (Long) stat.get("bronze") + (Long) up.get("bronze"));
+                
+                // 安全地从 Map 中提取并转换数值
+                long totalPoints = up.get("total_points") instanceof Number ? ((Number) up.get("total_points")).longValue() : 0L;
+                long gold = up.get("gold") instanceof Number ? ((Number) up.get("gold")).longValue() : 0L;
+                long silver = up.get("silver") instanceof Number ? ((Number) up.get("silver")).longValue() : 0L;
+                long bronze = up.get("bronze") instanceof Number ? ((Number) up.get("bronze")).longValue() : 0L;
+
+                stat.put("total_points", (Long) stat.get("total_points") + totalPoints);
+                stat.put("gold", (Long) stat.get("gold") + gold);
+                stat.put("silver", (Long) stat.get("silver") + silver);
+                stat.put("bronze", (Long) stat.get("bronze") + bronze);
                 stat.put("athlete_count", (Long) stat.get("athlete_count") + 1);
             }
             return collegeStats.values().stream()
@@ -293,7 +347,16 @@ public class ScoreServiceImpl implements ScoreService {
         List<Map<String, Object>> topUsers = scoreMapper.selectTopAthletes(meetingId, limit != null ? limit : 10);
         if (topUsers == null || topUsers.isEmpty()) return java.util.Collections.emptyList();
         
-        java.util.List<Long> userIds = topUsers.stream().map(m -> (Long) m.get("user_id")).collect(java.util.stream.Collectors.toList());
+        java.util.List<Long> userIds = topUsers.stream()
+            .map(m -> {
+                Object id = m.get("user_id");
+                if (id == null) id = m.get("USER_ID");
+                return id instanceof Number ? ((Number) id).longValue() : null;
+            })
+            .filter(java.util.Objects::nonNull)
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (userIds.isEmpty()) return java.util.Collections.emptyList();
         com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
         
         if (userResult.getCode() == 200 && userResult.getData() != null) {
@@ -301,7 +364,11 @@ public class ScoreServiceImpl implements ScoreService {
                 .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u));
             
             for (Map<String, Object> tu : topUsers) {
-                com.sports.sports.client.vo.UserVO vo = userMap.get((Long) tu.get("user_id"));
+                Object uidObj = tu.get("user_id");
+                if (uidObj == null) uidObj = tu.get("USER_ID");
+                Long uid = uidObj instanceof Number ? ((Number) uidObj).longValue() : null;
+                
+                com.sports.sports.client.vo.UserVO vo = userMap.get(uid);
                 if (vo != null) {
                     tu.put("real_name", vo.getRealName());
                     tu.put("college", vo.getCollege());

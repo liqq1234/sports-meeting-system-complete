@@ -7,7 +7,7 @@
           <path d="M10 20l6-10 6 10" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="16" cy="8" r="2" fill="#FFD700"/>
         </svg>
-        <h1 v-if="!isCollapse" class="logo-title">运动会管理系统</h1>
+        <h1 v-if="!isCollapse" class="logo-title">{{ role === 2 ? '智慧运动会' : '运动会管理系统' }}</h1>
         <i v-else class="el-icon-trophy logo-icon"></i>
       </div>
       <el-menu
@@ -27,7 +27,7 @@
 
         <el-menu-item index="/meeting/list">
           <i class="el-icon-trophy"></i>
-          <span slot="title">运动会管理</span>
+          <span slot="title">{{ role === 2 ? '赛事中心' : '运动会管理' }}</span>
         </el-menu-item>
 
         <el-menu-item index="/event/list">
@@ -43,27 +43,33 @@
           <el-menu-item index="/registration/list">报名列表</el-menu-item>
         </el-submenu>
 
-        <el-submenu index="registration-athlete" v-if="role === 2">
-          <template slot="title">
-            <i class="el-icon-edit-outline"></i>
-            <span>我的报名</span>
-          </template>
-          <el-menu-item index="/registration/my">报名管理</el-menu-item>
-        </el-submenu>
+        <el-menu-item index="/registration/my" v-if="role === 2">
+          <i class="el-icon-edit-outline"></i>
+          <span slot="title">报名记录</span>
+        </el-menu-item>
 
         <el-menu-item index="/schedule/list">
           <i class="el-icon-date"></i>
-          <span slot="title">赛程管理</span>
+          <span slot="title">{{ role === 2 ? '赛事日程' : '赛程管理' }}</span>
         </el-menu-item>
 
-        <el-submenu index="score">
+        <el-submenu index="score" v-if="role === 0 || role === 1">
           <template slot="title">
             <i class="el-icon-s-data"></i>
             <span>成绩管理</span>
           </template>
-          <el-menu-item index="/score/list" v-if="role === 0 || role === 1">成绩列表</el-menu-item>
-          <el-menu-item index="/score/my" v-if="role === 2">我的成绩</el-menu-item>
+          <el-menu-item index="/score/list">成绩列表</el-menu-item>
         </el-submenu>
+
+        <el-menu-item index="/score/my" v-if="role === 2">
+          <i class="el-icon-s-data"></i>
+          <span slot="title">我的成绩</span>
+        </el-menu-item>
+
+        <el-menu-item index="/health/my" v-if="role === 2">
+          <i class="el-icon-first-aid-kit"></i>
+          <span slot="title">我的健康</span>
+        </el-menu-item>
 
         <el-menu-item index="/user/list" v-if="role === 0">
           <i class="el-icon-user"></i>
@@ -75,16 +81,16 @@
           <span slot="title">场地管理</span>
         </el-menu-item>
 
-        <el-submenu index="logistics" v-if="role === 0">
+        <el-submenu index="logistics">
           <template slot="title">
             <i class="el-icon-truck"></i>
-            <span>后勤管理</span>
+            <span>后勤服务</span>
           </template>
-          <el-menu-item index="/logistics/material">物资库</el-menu-item>
-          <el-menu-item index="/logistics/allocation">物资发放</el-menu-item>
+          <el-menu-item index="/logistics/material" v-if="role === 0">物资库</el-menu-item>
+          <el-menu-item index="/logistics/allocation">{{ role === 0 ? '发放管理' : '物资领用' }}</el-menu-item>
         </el-submenu>
 
-        <el-menu-item index="/medical/records">
+        <el-menu-item index="/medical/records" v-if="role === 0 || role === 1">
           <i class="el-icon-first-aid-kit"></i>
           <span slot="title">医疗保障</span>
         </el-menu-item>
@@ -236,13 +242,13 @@ export default {
       if (command === 'logout') {
         this.$confirm('确定退出登录？', '提示', { type: 'warning' }).then(() => {
           this.$store.dispatch('user/logout').then(() => {
-            this.$router.push('/login')
+            this.$router.push('/login').catch(() => {})
           })
         })
-      } else if (command === 'profile') {
-        this.$router.push('/profile')
-      } else if (command === 'password') {
-        this.$router.push('/profile')
+      } else if (command === 'profile' || command === 'password') {
+        if (this.$route.path !== '/profile') {
+          this.$router.push('/profile').catch(() => {})
+        }
       }
     }
   }

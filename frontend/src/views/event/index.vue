@@ -73,10 +73,15 @@
             <el-button size="mini" type="text" style="color:#F56C6C" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" align="center" v-if="role === 2">
+        <el-table-column label="操作" width="90" align="center" v-if="role === 2">
           <template slot-scope="{ row }">
-            <el-button size="mini" type="primary" @click="handleEnroll(row)" :disabled="row.enrolled">
-              {{ row.enrolled ? '已报名' : '报名' }}
+            <el-button size="mini" type="primary" @click="handleEnroll(row)" 
+              :disabled="row.enrolled || row.status !== 0 || (row.maxParticipants > 0 && row.currentParticipants >= row.maxParticipants)">
+              <span v-if="row.enrolled">已报名</span>
+              <span v-else-if="row.status === 1">进行中</span>
+              <span v-else-if="row.status === 2">已结束</span>
+              <span v-else-if="row.maxParticipants > 0 && row.currentParticipants >= row.maxParticipants">已满额</span>
+              <span v-else>报名</span>
             </el-button>
           </template>
         </el-table-column>
@@ -147,7 +152,9 @@
           </el-col>
         </el-row>
         <el-form-item label="比赛场地">
-          <el-input v-model="form.venue" placeholder="请输入场地" />
+          <el-select v-model="form.venue" placeholder="请选择场地" clearable filterable style="width:100%">
+            <el-option v-for="v in venueList" :key="v.id" :label="v.name" :value="v.name" />
+          </el-select>
         </el-form-item>
         <el-row>
           <el-col :span="12">
@@ -197,12 +204,13 @@ import { getEventPage, addEvent, updateEvent, deleteEvent, updateEventStatus } f
 import { getMeetingList } from '@/api/meeting'
 import { getUserPage } from '@/api/user'
 import { enroll } from '@/api/registration'
+import { getVenueList } from '@/api/venue'
 
 export default {
   name: 'EventList',
   data() {
     return {
-      loading: false, tableData: [], total: 0, meetingList: [], refereeList: [],
+      loading: false, tableData: [], total: 0, meetingList: [], refereeList: [], venueList: [],
       queryParams: { pageNum: 1, pageSize: 10, meetingId: null, name: '', category: null, status: null },
       dialogVisible: false, dialogTitle: '', form: {}, submitLoading: false,
       formRules: {
@@ -215,7 +223,7 @@ export default {
     }
   },
   computed: { role() { return this.$store.getters.role } },
-  created() { this.loadData(); this.loadMeetings(); this.loadReferees() },
+  created() { this.loadData(); this.loadMeetings(); this.loadReferees(); this.loadVenues() },
   methods: {
     async loadData() {
       this.loading = true
@@ -233,16 +241,23 @@ export default {
         this.refereeList = res.data.records || []
       } catch (e) { /* ignore */ }
     },
+    async loadVenues() {
+      try {
+        const res = await getVenueList()
+        this.venueList = res.data || []
+      } catch (e) { /* ignore */ }
+    },
     handleQuery() { this.queryParams.pageNum = 1; this.loadData() },
     resetQuery() { this.queryParams = { pageNum: 1, pageSize: 10, meetingId: null, name: '', category: null, status: null }; this.loadData() },
     handleAdd() {
       this.dialogTitle = '新增比赛项目'
       this.form = { meetingId: null, name: '', category: '', genderLimit: 2, maxParticipants: 0, minParticipants: 0, eventDate: '', startTime: '', endTime: '', venue: '', scoreType: 0, scoreUnit: '', refereeId: null, rules: '' }
+      this.loadVenues() // 每次打开弹窗都刷新一下场地
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
     },
     handleEdit(row) {
-      this.dialogTitle = '编辑比赛项目'; this.form = { ...row }; this.dialogVisible = true
+      this.dialogTitle = '编辑比赛项目'; this.form = { ...row }; this.loadVenues(); this.dialogVisible = true
     },
     handleSubmit() {
       this.$refs.form.validate(async valid => {

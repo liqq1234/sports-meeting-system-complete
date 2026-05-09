@@ -18,7 +18,6 @@
           <el-button type="primary" icon="el-icon-search" @click="handleQuery">查询</el-button>
           <el-button icon="el-icon-refresh" @click="resetQuery">重置</el-button>
           <el-button type="success" icon="el-icon-plus" @click="handleAdd" v-if="role === 0">新增赛程</el-button>
-          <el-button type="warning" icon="el-icon-magic-stick" @click="handleAutoGenerate" v-if="role === 0">自动生成</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -27,9 +26,9 @@
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column prop="eventName" label="比赛项目" width="140" />
         <el-table-column prop="meetingName" label="运动会" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="roundName" label="轮次" width="100" />
+        <el-table-column prop="round" label="轮次" width="100" />
         <el-table-column prop="groupNo" label="组号" width="70" align="center" />
-        <el-table-column prop="scheduleDate" label="日期" width="110" />
+        <el-table-column prop="eventDate" label="日期" width="110" />
         <el-table-column label="时间" width="120" align="center">
           <template slot-scope="{ row }">{{ row.startTime }} - {{ row.endTime }}</template>
         </el-table-column>
@@ -79,14 +78,14 @@
             <el-option v-for="e in eventList" :key="e.id" :label="e.name" :value="e.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="轮次" prop="roundName">
-          <el-input v-model="form.roundName" placeholder="如：预赛/决赛" />
+        <el-form-item label="轮次" prop="round">
+          <el-input v-model="form.round" placeholder="如：预赛/决赛" />
         </el-form-item>
         <el-form-item label="组号">
           <el-input-number v-model="form.groupNo" :min="1" />
         </el-form-item>
-        <el-form-item label="日期" prop="scheduleDate">
-          <el-date-picker v-model="form.scheduleDate" type="date" value-format="yyyy-MM-dd" style="width:100%" />
+        <el-form-item label="日期" prop="eventDate">
+          <el-date-picker v-model="form.eventDate" type="date" value-format="yyyy-MM-dd" style="width:100%" />
         </el-form-item>
         <el-row>
           <el-col :span="12">
@@ -120,35 +119,38 @@
       </div>
     </el-dialog>
 
-    <!-- 自动生成对话框 -->
-    <el-dialog title="自动生成赛程" :visible.sync="autoVisible" width="400px">
-      <el-form label-width="80px">
-        <el-form-item label="运动会">
-          <el-select v-model="autoMeetingId" placeholder="请选择" style="width:100%">
-            <el-option v-for="m in meetingList" :key="m.id" :label="m.name" :value="m.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <div slot="footer">
-        <el-button @click="autoVisible = false">取消</el-button>
-        <el-button type="primary" :loading="autoLoading" @click="submitAutoGenerate">生成</el-button>
+    <!-- 运动员查看/分配对话框 -->
+    <el-dialog title="赛程运动员" :visible.sync="athleteVisible" width="700px">
+      <div style="margin-bottom: 15px">
+        <el-button type="primary" size="small" icon="el-icon-user-solid" @click="handleAssign">分配运动员</el-button>
       </div>
+      <el-table :data="athletes" stripe size="small" border>
+        <el-table-column prop="laneNo" label="道次" width="70" align="center" />
+        <el-table-column prop="userRealName" label="姓名" width="120" />
+        <el-table-column prop="userCollege" label="学院" />
+        <el-table-column prop="userClassName" label="班级" />
+      </el-table>
     </el-dialog>
 
-    <!-- 运动员查看/分配对话框 -->
-    <el-dialog title="赛程运动员" :visible.sync="athleteVisible" width="600px">
-      <el-table :data="athletes" stripe size="small">
-        <el-table-column prop="laneNumber" label="道次" width="60" align="center" />
-        <el-table-column prop="realName" label="姓名" width="100" />
-        <el-table-column prop="college" label="学院" />
-        <el-table-column prop="className" label="班级" />
+    <!-- 分配运动员选择对话框 -->
+    <el-dialog title="选择运动员" :visible.sync="assignVisible" width="600px" append-to-body>
+      <el-table :data="regList" @selection-change="handleSelectionChange" v-loading="assignLoading" size="small" border>
+        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column prop="userRealName" label="姓名" width="120" />
+        <el-table-column prop="userCollege" label="学院" show-overflow-tooltip />
+        <el-table-column prop="remark" label="报名备注" show-overflow-tooltip />
       </el-table>
+      <div slot="footer">
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitAssign">保存分配</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { getSchedulePage, addSchedule, updateSchedule, deleteSchedule, updateScheduleStatus, autoGenerate, getScheduleAthletes } from '@/api/schedule'
+import { getSchedulePage, addSchedule, updateSchedule, deleteSchedule, updateScheduleStatus, getScheduleAthletes, assignAthletes } from '@/api/schedule'
+import { getRegistrationPage } from '@/api/registration'
 import { getMeetingList } from '@/api/meeting'
 import { getEventsByMeeting } from '@/api/event'
 import { getVenueList } from '@/api/venue'
@@ -158,14 +160,15 @@ export default {
   name: 'ScheduleList',
   data() {
     return {
-      loading: false, tableData: [], total: 0,
-      meetingList: [], eventList: [], venueList: [], refereeList: [],
+      loading: false, tableData: [], total: 0, meetingList: [], eventList: [], venueList: [], refereeList: [],
+      athletes: [], athleteVisible: false, currentSchedule: {},
+      assignVisible: false, regList: [], selectedUserIds: [], assignLoading: false,
       queryParams: { pageNum: 1, pageSize: 10, meetingId: null, status: null },
       dialogVisible: false, dialogTitle: '', form: {}, submitLoading: false,
       formRules: {
         meetingId: [{ required: true, message: '请选择运动会', trigger: 'change' }],
         eventId: [{ required: true, message: '请选择项目', trigger: 'change' }],
-        scheduleDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
+        eventDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
         startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
         endTime: [{ required: true, message: '请选择结束时间', trigger: 'change' }]
       },
@@ -194,7 +197,7 @@ export default {
     resetQuery() { this.queryParams = { pageNum: 1, pageSize: 10, meetingId: null, status: null }; this.loadData() },
     handleAdd() {
       this.dialogTitle = '新增赛程'
-      this.form = { meetingId: null, eventId: null, roundName: '决赛', groupNo: 1, scheduleDate: '', startTime: '', endTime: '', venueId: null, refereeId: null, remark: '' }
+      this.form = { meetingId: null, eventId: null, round: '决赛', groupNo: 1, eventDate: '', startTime: '', endTime: '', venueId: null, refereeId: null, remark: '', status: 0 }
       this.eventList = []
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
@@ -223,18 +226,30 @@ export default {
     async handleStatusChange(row, status) {
       await updateScheduleStatus(row.id, status); this.$message.success('状态变更成功'); this.loadData()
     },
-    handleAutoGenerate() { this.autoMeetingId = null; this.autoVisible = true },
-    async submitAutoGenerate() {
-      if (!this.autoMeetingId) { this.$message.warning('请选择运动会'); return }
-      this.autoLoading = true
-      try {
-        await autoGenerate(this.autoMeetingId)
-        this.$message.success('自动生成成功'); this.autoVisible = false; this.loadData()
-      } finally { this.autoLoading = false }
-    },
     async handleViewAthletes(row) {
+      this.currentSchedule = row
       const res = await getScheduleAthletes(row.id)
       this.athletes = res.data || []; this.athleteVisible = true
+    },
+    async handleAssign() {
+      this.assignLoading = true
+      this.assignVisible = true
+      try {
+        const res = await getRegistrationPage({ eventId: this.currentSchedule.eventId, status: 1, pageSize: 100 })
+        this.regList = res.data.records || []
+      } finally { this.assignLoading = false }
+    },
+    handleSelectionChange(val) {
+      this.selectedUserIds = val.map(item => item.userId)
+    },
+    async submitAssign() {
+      if (this.selectedUserIds.length === 0) { this.$message.warning('请选择运动员'); return }
+      await assignAthletes(this.currentSchedule.id, this.selectedUserIds)
+      this.$message.success('分配成功')
+      this.assignVisible = false
+      const res = await getScheduleAthletes(this.currentSchedule.id)
+      this.athletes = res.data || []
+      this.loadData()
     }
   }
 }

@@ -32,7 +32,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final EventMapper eventMapper;
 
     private final RegistrationMapper registrationMapper;
-
+    private final VenueMapper venueMapper;
+    private final ScoreMapper scoreMapper;
     private final com.sports.sports.client.UserClient userClient;
 
     @Override
@@ -56,12 +57,25 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     @CacheEvict(value = {"schedules", "schedule:detail"}, allEntries = true)
     public void add(Schedule schedule) {
+        log.info("新增赛程接收到的数据: {}", schedule);
+        if (schedule.getVenueId() != null) {
+            Venue venue = venueMapper.selectById(schedule.getVenueId());
+            if (venue != null) {
+                schedule.setVenueName(venue.getName());
+            }
+        }
         scheduleMapper.insert(schedule);
     }
 
     @Override
     @CacheEvict(value = {"schedules", "schedule:detail"}, allEntries = true)
     public void update(Schedule schedule) {
+        if (schedule.getVenueId() != null) {
+            Venue venue = venueMapper.selectById(schedule.getVenueId());
+            if (venue != null) {
+                schedule.setVenueName(venue.getName());
+            }
+        }
         scheduleMapper.updateById(schedule);
     }
 
@@ -113,62 +127,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         scheduleMapper.updateById(schedule);
     }
 
-    @Override
-    @Transactional
-    public void autoGenerate(Long meetingId) {
-        // 获取该运动会所有比赛项目
-        List<Event> events = eventMapper.selectList(
-                new LambdaQueryWrapper<Event>()
-                        .eq(Event::getMeetingId, meetingId)
-                        .orderByAsc(Event::getEventDate)
-                        .orderByAsc(Event::getStartTime));
 
-        for (Event event : events) {
-            // 检查是否已有赛程
-            Long existCount = scheduleMapper.selectCount(
-                    new LambdaQueryWrapper<Schedule>()
-                            .eq(Schedule::getEventId, event.getId())
-                            .eq(Schedule::getMeetingId, meetingId));
-            if (existCount > 0) {
-                continue;
-            }
-
-            // 获取该项目已通过审核的报名运动员
-            List<Registration> registrations = registrationMapper.selectList(
-                    new LambdaQueryWrapper<Registration>()
-                            .eq(Registration::getEventId, event.getId())
-                            .eq(Registration::getStatus, Constants.REG_APPROVED));
-
-            if (registrations.isEmpty()) {
-                continue;
-            }
-
-            // 创建赛程
-            Schedule schedule = new Schedule();
-            schedule.setMeetingId(meetingId);
-            schedule.setEventId(event.getId());
-            schedule.setRound("决赛");
-            schedule.setGroupNo(1);
-            schedule.setEventDate(event.getEventDate());
-            schedule.setStartTime(event.getStartTime());
-            schedule.setEndTime(event.getEndTime());
-            schedule.setVenueName(event.getVenue());
-            schedule.setRefereeId(event.getRefereeId());
-            schedule.setStatus(Constants.SCHEDULE_NOT_STARTED);
-            scheduleMapper.insert(schedule);
-
-            // 分配运动员到赛程
-            int laneNo = 1;
-            for (Registration reg : registrations) {
-                ScheduleAthlete sa = new ScheduleAthlete();
-                sa.setScheduleId(schedule.getId());
-                sa.setUserId(reg.getUserId());
-                sa.setLaneNo(laneNo++);
-                sa.setStatus(0);
-                scheduleAthleteMapper.insert(sa);
-            }
-        }
-    }
 
     @Override
     public List<ScheduleAthlete> getAthletes(Long scheduleId) {
@@ -188,6 +147,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                     if (vo != null) {
                         sa.setUserRealName(vo.getRealName());
                         sa.setUserCollege(vo.getCollege());
+                        sa.setUserClassName(vo.getClassName());
                     }
                 }
             }
@@ -198,19 +158,66 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     @Transactional
     public void assignAthletes(Long scheduleId, List<Long> userIds) {
-        // 先删除已有分配
+        // 获取当前赛程信息
+        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            throw new BusinessException("赛程不存在");
+        }
+
+        // 1. 检查重复分配：同一个项目，一个运动员只能参加一个赛程
+        // 获取该项目的所有赛程ID
+        List<Long> allScheduleIds = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>().eq(Schedule::getEventId, schedule.getEventId())
+        ).stream().map(Schedule::getId).collect(Collectors.toList());
+
+        // 检查是否有运动员已经分配到了该项目的其他赛程
+        List<Long> otherScheduleIds = allScheduleIds.stream()
+                .filter(id -> !id.equals(scheduleId))
+                .collect(Collectors.toList());
+        
+        if (!otherScheduleIds.isEmpty()) {
+            List<ScheduleAthlete> existingAssignments = scheduleAthleteMapper.selectList(
+                    new LambdaQueryWrapper<ScheduleAthlete>()
+                            .in(ScheduleAthlete::getScheduleId, otherScheduleIds)
+                            .in(ScheduleAthlete::getUserId, userIds));
+            
+            if (!existingAssignments.isEmpty()) {
+                throw new BusinessException("分配失败：部分运动员已分配到该项目的其他赛程中，不可重复分配");
+            }
+        }
+
+        // 2. 清理当前赛程的原有分配和待录入成绩
         scheduleAthleteMapper.delete(
                 new LambdaQueryWrapper<ScheduleAthlete>().eq(ScheduleAthlete::getScheduleId, scheduleId));
+        scoreMapper.delete(new LambdaQueryWrapper<Score>()
+                .eq(Score::getScheduleId, scheduleId)
+                .eq(Score::getStatus, Constants.SCORE_PENDING));
 
-        // 重新分配
+        // 3. 执行新分配
         int laneNo = 1;
         for (Long userId : userIds) {
+            // 插入赛程运动员关联
             ScheduleAthlete sa = new ScheduleAthlete();
             sa.setScheduleId(scheduleId);
             sa.setUserId(userId);
             sa.setLaneNo(laneNo++);
             sa.setStatus(0);
             scheduleAthleteMapper.insert(sa);
+
+            // 4. 初始化成绩记录（如果该项目下该运动员还没有成绩记录）
+            Score existingScore = scoreMapper.selectOne(new LambdaQueryWrapper<Score>()
+                    .eq(Score::getEventId, schedule.getEventId())
+                    .eq(Score::getUserId, userId));
+            
+            if (existingScore == null) {
+                Score score = new Score();
+                score.setUserId(userId);
+                score.setEventId(schedule.getEventId());
+                score.setMeetingId(schedule.getMeetingId());
+                score.setScheduleId(scheduleId);
+                score.setStatus(Constants.SCORE_PENDING);
+                scoreMapper.insert(score);
+            }
         }
     }
 }

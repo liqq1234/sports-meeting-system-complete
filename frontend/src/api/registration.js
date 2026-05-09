@@ -31,3 +31,7 @@ export function getRegistrationStats(meetingId) {
 export function getCollegeRegistrationStats(meetingId) {
   return request({ url: `/sports/registration/collegeStats/${meetingId}`, method: 'get' })
 }
+
+export function withdrawForMedical(params) {
+  return request({ url: '/sports/registration/withdraw', method: 'post', params })
+}

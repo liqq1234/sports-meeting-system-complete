@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,21 +27,16 @@ import java.util.Map;
 public class RegistrationServiceImpl implements RegistrationService {
 
     private final RegistrationMapper registrationMapper;
-
     private final com.sports.sports.client.UserClient userClient;
-
     private final EventMapper eventMapper;
-
     private final MeetingMapper meetingMapper;
-
     private final MessageService messageService;
 
     @Override
     public PageResult<Registration> getPage(Integer pageNum, Integer pageSize, Long meetingId, Long eventId, Long userId, Integer status, String keyword) {
         Page<Registration> page = new Page<>(pageNum, pageSize);
-        // Note: keyword search across services would require fetching IDs from auth-service first.
-        // For now, we focus on data aggregation for the paginated result.
-        IPage<Registration> result = registrationMapper.selectRegistrationPage(page, meetingId, eventId, userId, status, null);
+        // 调用 Mapper 层的自定义关联查询，确保能查到项目名称 (eventName)
+        IPage<Registration> result = registrationMapper.selectRegistrationPage(page, meetingId, eventId, userId, status, keyword);
         List<Registration> records = result.getRecords();
 
         fillUserInformation(records);
@@ -117,29 +113,31 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private void validateUserConstraints(Long userId, Event event) {
-        // 性别限制
+        if (event.getStatus() != null && event.getStatus() != 0) {
+            String statusText = event.getStatus() == 1 ? "进行中" : "已结束";
+            throw new BusinessException("报名失败：该项目当前处于" + statusText + "状态，已停止报名");
+        }
+
         Integer userGender = UserContext.getCurrentUserGender();
         if (event.getGenderLimit() != null && event.getGenderLimit() != 2) {
             if (!event.getGenderLimit().equals(userGender)) {
-                throw new BusinessException("该项目有性别限制，不符合报名条件");
+                String limitText = event.getGenderLimit() == 0 ? "男" : "女";
+                throw new BusinessException("性别不符：该项目仅限" + limitText + "运动员报名");
             }
         }
 
-        // 重复报名检查
         Long existCount = registrationMapper.selectCount(new LambdaQueryWrapper<Registration>()
                 .eq(Registration::getUserId, userId)
                 .eq(Registration::getEventId, event.getId())
                 .ne(Registration::getStatus, Constants.REG_CANCELLED));
         if (existCount > 0) throw new BusinessException("您已报名该项目，请勿重复报名");
 
-        // 项目数量限制
         Long enrolledCount = registrationMapper.selectCount(new LambdaQueryWrapper<Registration>()
                 .eq(Registration::getUserId, userId)
                 .eq(Registration::getMeetingId, event.getMeetingId())
                 .in(Registration::getStatus, Constants.REG_PENDING, Constants.REG_APPROVED));
         if (enrolledCount >= 3) throw new BusinessException("每位运动员每届运动会最多报名3个项目");
 
-        // 人数限制
         if (event.getMaxParticipants() > 0) {
             Integer currentCount = registrationMapper.countByEventId(event.getId());
             if (currentCount >= event.getMaxParticipants()) {
@@ -152,19 +150,13 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Transactional
     public void cancel(Long id) {
         Registration reg = registrationMapper.selectById(id);
-        if (reg == null) {
-            throw new BusinessException("报名记录不存在");
-        }
+        if (reg == null) throw new BusinessException("报名记录不存在");
 
         Long userId = UserContext.getCurrentUserId();
         Integer role = UserContext.getCurrentUserRole();
         if (role != Constants.ROLE_ADMIN && !reg.getUserId().equals(userId)) {
             throw new BusinessException("只能取消自己的报名");
         }
-        if (reg.getStatus() == Constants.REG_CANCELLED) {
-            throw new BusinessException("该报名已取消");
-        }
-
         reg.setStatus(Constants.REG_CANCELLED);
         registrationMapper.updateById(reg);
     }
@@ -173,19 +165,13 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Transactional
     public void review(Long id, Integer status, String rejectReason) {
         Registration reg = registrationMapper.selectById(id);
-        if (reg == null) {
-            throw new BusinessException("报名记录不存在");
-        }
-        if (reg.getStatus() != Constants.REG_PENDING) {
-            throw new BusinessException("该报名记录不在待审核状态");
-        }
+        if (reg == null) throw new BusinessException("报名记录不存在");
+        if (reg.getStatus() != Constants.REG_PENDING) throw new BusinessException("该报名记录不在待审核状态");
 
         reg.setStatus(status);
         reg.setReviewedBy(UserContext.getCurrentUserId());
         reg.setReviewTime(LocalDateTime.now());
-        if (status == Constants.REG_REJECTED) {
-            reg.setRejectReason(rejectReason);
-        }
+        if (status == Constants.REG_REJECTED) reg.setRejectReason(rejectReason);
         registrationMapper.updateById(reg);
 
         sendReviewNotification(reg, status, rejectReason);
@@ -209,9 +195,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     @Transactional
     public void batchReview(List<Long> ids, Integer status, String rejectReason) {
-        for (Long id : ids) {
-            review(id, status, rejectReason);
-        }
+        for (Long id : ids) review(id, status, rejectReason);
     }
 
     @Override
@@ -231,24 +215,22 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     public List<Map<String, Object>> getCollegeRegistrationStats(Long meetingId) {
-        // 1. 获取 raw 数据 (user_id -> total)
         List<Map<String, Object>> rawStats = registrationMapper.selectCollegeRegistrationStats(meetingId);
-        if (rawStats == null || rawStats.isEmpty()) {
-            return java.util.Collections.emptyList();
-        }
+        if (rawStats == null || rawStats.isEmpty()) return java.util.Collections.emptyList();
 
-        // 2. 收集所有相关用户 ID
         java.util.List<Long> userIds = rawStats.stream()
-            .map(m -> (Long) m.get("user_id"))
+            .map(m -> {
+                Object uid = m.get("user_id");
+                if (uid == null) uid = m.get("USER_ID");
+                return uid instanceof Number ? ((Number) uid).longValue() : null;
+            })
+            .filter(java.util.Objects::nonNull)
             .collect(java.util.stream.Collectors.toList());
 
-        // 3. 批量 RPC 获取用户信息 (这里主要为了拿 college)
         com.sports.sports.common.Result<List<com.sports.sports.client.vo.UserVO>> userResult = userClient.listByIds(userIds);
-        
         if (userResult.getCode() == 200 && userResult.getData() != null) {
             return aggregateAndSortCollegeStats(rawStats, userResult.getData());
         }
-
         return java.util.Collections.emptyList();
     }
 
@@ -256,22 +238,63 @@ public class RegistrationServiceImpl implements RegistrationService {
         java.util.Map<Long, String> userCollegeMap = users.stream()
                 .collect(java.util.stream.Collectors.toMap(com.sports.sports.client.vo.UserVO::getId, u -> u.getCollege() != null ? u.getCollege() : "未知学院"));
 
-        java.util.Map<String, Long> collegeTotalMap = new java.util.HashMap<>();
+        class CollegeData {
+            java.util.Set<Long> athleteIds = new java.util.HashSet<>();
+            long eventCount = 0;
+        }
+        java.util.Map<String, CollegeData> collegeDataMap = new java.util.HashMap<>();
+
         for (Map<String, Object> stat : rawStats) {
-            Long userId = (Long) stat.get("user_id");
-            Long total = (Long) stat.get("total");
+            Object userIdObj = stat.get("user_id");
+            if (userIdObj == null) userIdObj = stat.get("USER_ID");
+            Long userId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : null;
+            Object totalObj = stat.get("total");
+            if (totalObj == null) totalObj = stat.get("TOTAL");
+            Long total = totalObj instanceof Number ? ((Number) totalObj).longValue() : 0L;
+            if (userId == null) continue;
             String college = userCollegeMap.getOrDefault(userId, "未知学院");
-            collegeTotalMap.put(college, collegeTotalMap.getOrDefault(college, 0L) + total);
+            CollegeData data = collegeDataMap.computeIfAbsent(college, k -> new CollegeData());
+            data.athleteIds.add(userId);
+            data.eventCount += total;
         }
 
-        return collegeTotalMap.entrySet().stream()
+        return collegeDataMap.entrySet().stream()
                 .map(entry -> {
                     Map<String, Object> m = new java.util.HashMap<>();
                     m.put("college", entry.getKey());
-                    m.put("total", entry.getValue());
+                    m.put("athlete_count", (long) entry.getValue().athleteIds.size());
+                    m.put("event_count", entry.getValue().eventCount);
                     return m;
                 })
-                .sorted((m1, m2) -> ((Long) m2.get("total")).compareTo((Long) m1.get("total")))
+                .sorted((m1, m2) -> ((Long) m2.get("event_count")).compareTo((Long) m1.get("event_count")))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void withdrawForMedicalReason(Long userId, Long eventId) {
+        Registration reg = registrationMapper.selectOne(new LambdaQueryWrapper<Registration>()
+                .eq(Registration::getUserId, userId)
+                .eq(Registration::getEventId, eventId)
+                .in(Registration::getStatus, Constants.REG_PENDING, Constants.REG_APPROVED));
+        
+        if (reg != null) {
+            reg.setStatus(Constants.REG_MEDICAL_WITHDRAWN);
+            registrationMapper.updateById(reg);
+            
+            Message msg = new Message();
+            msg.setUserId(userId);
+            msg.setTitle("医疗退赛通知");
+            msg.setContent("经医务组判定，您目前的身体状况不建议继续参加该比赛项目，已为您办理医疗退赛。请遵医嘱休息。");
+            msg.setType(Constants.NOTICE_SYSTEM);
+            messageService.send(msg);
+        }
+    }
+
+    @Override
+    public List<Registration> getApprovedRegistrations(Long userId, Long meetingId) {
+        // 为了显示名称，这里还是调用 selectRegistrationPage 更好，但为了简单实现接口：
+        Page<Registration> page = new Page<>(1, 100);
+        return registrationMapper.selectRegistrationPage(page, meetingId, null, userId, 1, null).getRecords();
     }
 }

@@ -38,9 +38,10 @@
         <el-table-column prop="userClassName" label="班级" width="110" />
         <el-table-column prop="eventName" label="比赛项目" width="130" />
         <el-table-column prop="meetingName" label="运动会" min-width="180" show-overflow-tooltip />
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column label="状态" width="100" align="center">
           <template slot-scope="{ row }">
-            <el-tag :type="{0:'warning',1:'success',2:'danger',3:'info'}[row.status]" size="small">{{ row.statusName }}</el-tag>
+            <el-tag v-if="row.status === 4" type="danger" size="small" effect="dark">因伤退赛</el-tag>
+            <el-tag v-else :type="{0:'warning',1:'success',2:'danger',3:'info'}[row.status]" size="small">{{ row.statusName }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="报名时间" width="160" />

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Map;
 
 @Api(tags = "赛程管理")
 @RestController
@@ -70,12 +71,7 @@ public class ScheduleController {
         return Result.success("操作成功");
     }
 
-    @ApiOperation("自动生成赛程")
-    @PostMapping("/autoGenerate/{meetingId}")
-    public Result<?> autoGenerate(@PathVariable Long meetingId) {
-        scheduleService.autoGenerate(meetingId);
-        return Result.success("赛程自动生成完成");
-    }
+
 
     @ApiOperation("获取赛程运动员列表")
     @GetMapping("/athletes/{scheduleId}")
@@ -85,7 +81,8 @@ public class ScheduleController {
 
     @ApiOperation("手动分配运动员")
     @PostMapping("/assignAthletes/{scheduleId}")
-    public Result<?> assignAthletes(@PathVariable Long scheduleId, @RequestBody List<Long> userIds) {
+    public Result<?> assignAthletes(@PathVariable Long scheduleId, @RequestBody Map<String, List<Long>> params) {
+        List<Long> userIds = params.get("userIds");
         scheduleService.assignAthletes(scheduleId, userIds);
         return Result.success("分配成功");
     }

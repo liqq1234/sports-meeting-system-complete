@@ -57,4 +57,11 @@ public class MessageController {
         messageService.delete(id);
         return Result.success("删除成功");
     }
+
+    @ApiOperation("发送消息(内部调用)")
+    @PostMapping("/send")
+    public Result<?> send(@RequestBody Message message) {
+        messageService.send(message);
+        return Result.success("发送成功");
+    }
 }

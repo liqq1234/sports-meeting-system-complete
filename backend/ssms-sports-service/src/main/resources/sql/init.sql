@@ -69,7 +69,7 @@ CREATE TABLE t_registration (
     user_id       BIGINT   NOT NULL COMMENT '运动员用户ID',
     event_id      BIGINT   NOT NULL COMMENT '比赛项目ID',
     meeting_id    BIGINT   NOT NULL COMMENT '运动会ID',
-    status        TINYINT  NOT NULL DEFAULT 0 COMMENT '审核状态：0-待审核 1-审核通过 2-审核驳回 3-已取消',
+    status        TINYINT  NOT NULL DEFAULT 0 COMMENT '审核状态：0-待审核 1-审核通过 2-审核驳回 3-已取消 4-因伤退赛',
     reject_reason VARCHAR(500) DEFAULT NULL COMMENT '驳回原因',
     reviewed_by   BIGINT   DEFAULT NULL COMMENT '审核人ID',
     review_time   DATETIME DEFAULT NULL COMMENT '审核时间',

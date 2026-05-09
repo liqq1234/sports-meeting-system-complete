@@ -2,6 +2,7 @@ package com.sports.sports.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -17,6 +18,8 @@ public class Score implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @TableField("user_id")
+    @JsonProperty("athleteId")
     private Long userId;
 
     private Long eventId;
@@ -25,6 +28,8 @@ public class Score implements Serializable {
 
     private Long scheduleId;
 
+    @TableField("score_value")
+    @JsonProperty("score")
     private BigDecimal scoreValue;
 
     private String scoreText;
@@ -58,10 +63,10 @@ public class Score implements Serializable {
     private String userName;
 
     @TableField(exist = false)
-    private String userRealName;
+    private String athleteName;
 
     @TableField(exist = false)
-    private String userCollege;
+    private String athleteCollege;
 
     @TableField(exist = false)
     private String eventName;

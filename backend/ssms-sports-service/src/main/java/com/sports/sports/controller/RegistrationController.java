@@ -87,4 +87,17 @@ public class RegistrationController {
     public Result<List<Map<String, Object>>> getCollegeRegistrationStats(@PathVariable Long meetingId) {
         return Result.success(registrationService.getCollegeRegistrationStats(meetingId));
     }
+
+    @ApiOperation("因伤病强制退赛")
+    @PostMapping("/withdraw")
+    public Result<?> withdrawForMedicalReason(@RequestParam Long userId, @RequestParam Long eventId) {
+        registrationService.withdrawForMedicalReason(userId, eventId);
+        return Result.success("该运动员已因伤病成功办理退赛");
+    }
+
+    @ApiOperation("获取用户已通过的报名列表")
+    @GetMapping("/list/approved")
+    public Result<List<Registration>> getApprovedRegistrations(@RequestParam Long userId, @RequestParam Long meetingId) {
+        return Result.success(registrationService.getApprovedRegistrations(userId, meetingId));
+    }
 }

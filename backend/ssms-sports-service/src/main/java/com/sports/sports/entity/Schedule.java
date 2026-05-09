@@ -2,6 +2,7 @@ package com.sports.sports.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -22,11 +23,15 @@ public class Schedule implements Serializable {
 
     private Long eventId;
 
+    @JsonProperty("round")
+    @TableField("round")
     private String round;
 
     private Integer groupNo;
 
+    @JsonProperty("eventDate")
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @TableField("event_date")
     private LocalDate eventDate;
 
     @JsonFormat(pattern = "HH:mm:ss")

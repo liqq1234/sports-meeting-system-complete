@@ -16,6 +16,10 @@ export function batchRecord(data) {
   return request({ url: '/sports/score/batchRecord', method: 'post', data })
 }
 
+export function deleteScore(id) {
+  return request({ url: `/sports/score/${id}`, method: 'delete' })
+}
+
 export function confirmScore(id) {
   return request({ url: `/sports/score/confirm/${id}`, method: 'put' })
 }

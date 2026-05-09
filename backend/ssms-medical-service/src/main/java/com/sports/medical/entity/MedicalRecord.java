@@ -15,6 +15,7 @@ public class MedicalRecord implements Serializable {
 
     private Long meetingId;
     private Long patientId;
+    private Long eventId; // 关联比赛项目
     
     private LocalDateTime visitTime;
     private String symptoms;

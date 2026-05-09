@@ -24,9 +24,7 @@ export function updateScheduleStatus(id, status) {
   return request({ url: `/sports/schedule/status/${id}`, method: 'put', params: { status } })
 }
 
-export function autoGenerate(meetingId) {
-  return request({ url: `/sports/schedule/autoGenerate/${meetingId}`, method: 'post' })
-}
+
 
 export function getScheduleAthletes(scheduleId) {
   return request({ url: `/sports/schedule/athletes/${scheduleId}`, method: 'get' })

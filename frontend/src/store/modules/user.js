@@ -3,7 +3,7 @@ import { getToken, setToken, removeToken } from '@/utils/auth'
 
 const state = {
   token: getToken(),
-  userInfo: JSON.parse(localStorage.getItem('userInfo') || 'null')
+  userInfo: JSON.parse(sessionStorage.getItem('userInfo') || 'null')
 }
 
 const mutations = {
@@ -24,7 +24,7 @@ const actions = {
         commit('SET_TOKEN', token)
         commit('SET_USER_INFO', user)
         setToken(token)
-        localStorage.setItem('userInfo', JSON.stringify(user))
+        sessionStorage.setItem('userInfo', JSON.stringify(user))
         resolve(res)
       }).catch(err => reject(err))
     })
@@ -34,7 +34,7 @@ const actions = {
     return new Promise((resolve, reject) => {
       getCurrentUser().then(res => {
         commit('SET_USER_INFO', res.data)
-        localStorage.setItem('userInfo', JSON.stringify(res.data))
+        sessionStorage.setItem('userInfo', JSON.stringify(res.data))
         resolve(res)
       }).catch(err => reject(err))
     })
@@ -46,7 +46,7 @@ const actions = {
       commit('SET_TOKEN', '')
       commit('SET_USER_INFO', null)
       removeToken()
-      localStorage.removeItem('userInfo')
+      sessionStorage.removeItem('userInfo')
       resolve()
     })
   }

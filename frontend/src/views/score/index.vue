@@ -58,8 +58,9 @@
           <template slot-scope="{ row }">
             <el-button size="mini" type="text" @click="handleRecord(row)">录入</el-button>
             <el-button size="mini" type="text" @click="handleConfirm(row)" v-if="row.status === 1">确认</el-button>
-            <el-button size="mini" type="text" @click="handlePublish(row)" v-if="role === 0">公布</el-button>
+            <el-button size="mini" type="text" @click="handlePublish(row)" v-if="role === 0 || role === 1">公布</el-button>
             <el-button size="mini" type="text" @click="handleRanking(row)">排名</el-button>
+            <el-button size="mini" type="text" @click="handleDeleteScore(row)" v-if="role === 0 || role === 1" style="color:#F56C6C">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -116,7 +117,7 @@
 </template>
 
 <script>
-import { getScorePage, recordScore, confirmScore, publishScore, getEventScores, calculateRanking } from '@/api/score'
+import { getScorePage, recordScore, confirmScore, publishScore, getEventScores, calculateRanking, deleteScore } from '@/api/score'
 import { getMeetingList } from '@/api/meeting'
 
 export default {
@@ -164,6 +165,13 @@ export default {
     async handleRanking(row) {
       const res = await getEventScores(row.eventId)
       this.eventScores = res.data || []; this.rankingVisible = true
+    },
+    async handleDeleteScore(row) {
+      this.$confirm('确定删除该成绩记录？', '提示', { type: 'warning' }).then(async () => {
+        await deleteScore(row.id)
+        this.$message.success('删除成功')
+        this.loadData()
+      })
     }
   }
 }

@@ -51,7 +51,7 @@ public class VenueServiceImpl implements VenueService {
     @Override
     public List<Venue> listAll() {
         return venueMapper.selectList(
-                new LambdaQueryWrapper<Venue>().eq(Venue::getStatus, 1).orderByAsc(Venue::getName));
+                new LambdaQueryWrapper<Venue>().orderByAsc(Venue::getName));
     }
 
     @Override

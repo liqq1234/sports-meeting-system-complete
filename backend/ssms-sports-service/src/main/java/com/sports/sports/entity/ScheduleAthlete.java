@@ -33,4 +33,7 @@ public class ScheduleAthlete implements Serializable {
 
     @TableField(exist = false)
     private String userCollege;
+
+    @TableField(exist = false)
+    private String userClassName;
 }

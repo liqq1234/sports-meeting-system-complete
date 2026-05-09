@@ -5,6 +5,20 @@ import Layout from '@/layout/index.vue'
 
 Vue.use(VueRouter)
 
+// 解决 Vue Router 3.1.0+ 冗余导航报错问题
+const originalPush = VueRouter.prototype.push
+VueRouter.prototype.push = function push(location) {
+  return originalPush.call(this, location).catch(err => {
+    if (err.name !== 'NavigationDuplicated') throw err
+  })
+}
+const originalReplace = VueRouter.prototype.replace
+VueRouter.prototype.replace = function replace(location) {
+  return originalReplace.call(this, location).catch(err => {
+    if (err.name !== 'NavigationDuplicated') throw err
+  })
+}
+
 const routes = [
   {
     path: '/login',
@@ -35,7 +49,7 @@ const routes = [
     path: '/meeting',
     component: Layout,
     redirect: '/meeting/list',
-    meta: { title: '运动会管理', icon: 'el-icon-trophy' },
+    meta: { title: '赛事中心', icon: 'el-icon-trophy' },
     children: [
       {
         path: 'list',
@@ -63,7 +77,7 @@ const routes = [
     path: '/registration',
     component: Layout,
     redirect: '/registration/list',
-    meta: { title: '报名管理', icon: 'el-icon-edit-outline' },
+    meta: { title: '报名中心', icon: 'el-icon-edit-outline' },
     children: [
       {
         path: 'list',
@@ -83,7 +97,7 @@ const routes = [
     path: '/schedule',
     component: Layout,
     redirect: '/schedule/list',
-    meta: { title: '赛程管理', icon: 'el-icon-date' },
+    meta: { title: '赛程安排', icon: 'el-icon-date' },
     children: [
       {
         path: 'list',
@@ -97,7 +111,7 @@ const routes = [
     path: '/score',
     component: Layout,
     redirect: '/score/list',
-    meta: { title: '成绩管理', icon: 'el-icon-s-data' },
+    meta: { title: '成绩中心', icon: 'el-icon-s-data' },
     children: [
       {
         path: 'list',
@@ -110,6 +124,20 @@ const routes = [
         name: 'MyScore',
         component: () => import('@/views/score/my.vue'),
         meta: { title: '我的成绩', roles: [2] }
+      }
+    ]
+  },
+  {
+    path: '/health',
+    component: Layout,
+    redirect: '/health/my',
+    meta: { title: '健康中心', icon: 'el-icon-first-aid-kit', roles: [2] },
+    children: [
+      {
+        path: 'my',
+        name: 'MyMedicalRecords',
+        component: () => import('@/views/medical/my.vue'),
+        meta: { title: '我的健康', roles: [2] }
       }
     ]
   },
@@ -137,7 +165,7 @@ const routes = [
     path: '/medical',
     component: Layout,
     redirect: '/medical/records',
-    meta: { title: '医疗保障', icon: 'el-icon-first-aid-kit' },
+    meta: { title: '医疗保障', icon: 'el-icon-first-aid-kit', roles: [0, 1] },
     children: [
       {
         path: 'records',
@@ -147,6 +175,7 @@ const routes = [
       }
     ]
   },
+
   {
     path: '/user',
     component: Layout,
@@ -224,7 +253,8 @@ const router = new VueRouter({
 // 路由守卫
 const whiteList = ['/login', '/register']
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title ? `${to.meta.title} - 高校体育运动会管理系统` : '高校体育运动会管理系统'
+  const sysTitle = store.getters.role === 2 ? '智慧运动会' : '高校体育运动会管理系统'
+  document.title = to.meta.title ? `${to.meta.title} - ${sysTitle}` : sysTitle
   const token = store.getters.token
   if (token) {
     if (to.path === '/login' || to.path === '/register') {

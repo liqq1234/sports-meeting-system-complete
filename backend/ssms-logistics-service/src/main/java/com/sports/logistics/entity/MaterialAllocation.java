@@ -14,11 +14,21 @@ public class MaterialAllocation implements Serializable {
     private Long id;
 
     private Long meetingId;
+    
+    /**
+     * 关联项目ID
+     */
+    private Long eventId;
+    
     private Long applicantId;
+
+    @TableField(exist = false)
+    private String applicant;
+
     private String purpose;
     
     /**
-     * 状态：0-待审 1-批准 2-驳回 3-已分发
+     * 状态：0-待审 1-批准 2-驳回 3-已分发 4-已归还
      */
     private Integer status;
 
